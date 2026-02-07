@@ -5,11 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tablut - La Sfida</title>
     <link rel="stylesheet" href="style.css">
-</head>
+    </head>
 <body>
+
+    <div id="settings-icon">⚙️</div>
+
+    <div id="settings-menu" class="hidden">
+        <h3>Opzioni</h3>
+        <label class="switch-container">
+            <input type="checkbox" id="toggle-hints" checked>
+            <span class="label-text">Mostra mosse possibili</span>
+        </label>
+        <button id="close-settings">Chiudi</button>
+    </div>
+
     <h1>Tablut - La Sfida</h1>
 
-    <div id="menu">
+    <div id="main-menu">
         <p>Benvenuto! Premi il pulsante per iniziare.</p>
         <button id="start-btn">Inizia Partita</button>
     </div>
@@ -23,11 +35,15 @@
         <div id="game-container">
             <div id="board" class="board"></div>
         </div>
-        
-        <div id="restart-container" class="hidden">
-            <button id="restart-btn">Gioca Ancora</button>
-        </div>
 
+    </div>
+
+    <div id="game-over-modal" class="hidden">
+        <div class="modal-content">
+            <h2 id="winner-title">Vittoria!</h2>
+            <p id="winner-message">...</p>
+            <button id="play-again-btn">Gioca di nuovo</button>
+        </div>
     </div>
 
     <script src="js/main.js"></script>
