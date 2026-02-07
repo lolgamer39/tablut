@@ -1,25 +1,29 @@
 :root {
-    --bg-color: #f0e2d0;
-    --border-color: #5a3a22;
+    /* --- VARIABILI TEMA (Valori di Default: Classico / Legno) --- */
+    --page-bg: #faebd7;          /* Sfondo del sito */
+    --board-cell: #f0e2d0;       /* Colore casella */
+    --board-border: #5a3a22;     /* Colore bordi scacchiera */
+    
+    /* Colori Funzionali (Fissi) */
     --throne-color: #ffd700;
     --escape-color: #90ee90;
     --selection-color: rgba(0, 0, 0, 0.2);
     --hint-color: rgba(0, 0, 0, 0.25);
-    --coord-color: rgba(0, 0, 0, 0.5);
+    --coord-color: rgba(0, 0, 0, 0.6);
 }
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     text-align: center;
-    background-color: #faebd7;
+    background-color: var(--page-bg); /* Ora usa la variabile dinamica */
     margin: 0;
     padding: 20px;
     color: #333;
-    overflow-x: hidden; /* Evita scroll laterale */
-    transition: background-color 0.5s ease;
+    overflow-x: hidden;
+    transition: background-color 0.5s ease; /* Cambio colore fluido */
 }
 
-/* --- LOGO / TITOLO --- */
+/* --- LOGO DINAMICO --- */
 #title-container {
     margin-top: 20px;
     margin-bottom: 30px;
@@ -35,7 +39,6 @@ body {
     transition: all 0.5s ease-in-out;
 }
 
-/* STATO GIOCO ATTIVO (DESKTOP) */
 body.game-active #title-container {
     position: fixed;
     top: 10px;
@@ -54,7 +57,7 @@ body.game-active #main-title {
 .hidden { display: none !important; }
 .invisible { opacity: 0 !important; }
 
-/* --- LAYOUT DI GIOCO --- */
+/* --- LAYOUT --- */
 #game-layout {
     display: flex;
     justify-content: center;
@@ -64,11 +67,10 @@ body.game-active #main-title {
     flex-wrap: wrap; 
 }
 
-/* --- BARRA LATERALE (STORIA) --- */
 #sidebar {
     width: 250px;
     background: white;
-    border: 2px solid #8b4513;
+    border: 2px solid var(--board-border); /* Il bordo segue il tema */
     border-radius: 8px;
     padding: 10px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
@@ -83,7 +85,7 @@ body.game-active #main-title {
 }
 
 #move-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-#move-table th { background-color: #8b4513; color: white; padding: 5px; position: sticky; top: 0; }
+#move-table th { background-color: var(--board-border); color: white; padding: 5px; position: sticky; top: 0; }
 #move-table td { padding: 4px; border-bottom: 1px solid #eee; text-align: center; }
 #move-table tr:nth-child(even) { background-color: #f9f9f9; }
 
@@ -97,26 +99,24 @@ body.game-active #main-title {
     grid-template-columns: repeat(9, 60px);
     grid-template-rows: repeat(9, 60px);
     gap: 1px;
-    background-color: var(--border-color);
-    border: 5px solid var(--border-color);
+    background-color: var(--board-border); /* Colore delle linee (gap) */
+    border: 5px solid var(--board-border); /* Bordo esterno */
     width: fit-content;
     user-select: none;
     box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-    /* Sicurezza per evitare collasso */
-    min-width: 270px;
-    min-height: 270px;
-    margin: 0 auto;
+    transition: background-color 0.5s ease, border-color 0.5s ease;
 }
 
 .cell {
     width: 60px;
     height: 60px;
-    background-color: var(--bg-color);
+    background-color: var(--board-cell); /* Colore dinamico */
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    position: relative; /* FONDAMENTALE */
+    position: relative;
+    transition: background-color 0.5s ease;
 }
 
 .cell.selected::before {
@@ -127,7 +127,6 @@ body.game-active #main-title {
     z-index: 1;
 }
 
-/* Coordinate */
 .coord {
     position: absolute;
     font-size: 10px;
@@ -153,7 +152,7 @@ body.game-active #main-title {
 .throne { background-color: var(--throne-color); }
 .escape { background-color: var(--escape-color); }
 
-/* --- PEZZI --- */
+/* Pezzi */
 .piece {
     width: 44px;
     height: 44px;
@@ -164,15 +163,6 @@ body.game-active #main-title {
     position: relative;
     background-size: cover;
 }
-
-.animating-piece {
-    position: fixed; 
-    z-index: 9999;   
-    transition: all 0.25s ease-in-out; 
-    pointer-events: none; 
-    box-shadow: 0 15px 30px rgba(0,0,0,0.6); 
-}
-
 .white-piece { background-color: #fff; border: 2px solid #333; }
 .black-piece { background-color: #333; border: 2px solid #000; }
 .king { 
@@ -186,99 +176,41 @@ body.game-active #main-title {
 }
 .king::after { content: none; }
 
-/* UI Extra */
+.animating-piece {
+    position: fixed; 
+    z-index: 9999;   
+    transition: all 0.25s ease-in-out; 
+    pointer-events: none; 
+    box-shadow: 0 15px 30px rgba(0,0,0,0.6); 
+}
+
+/* --- IMPOSTAZIONI TEMA --- */
+#settings-menu hr { border: 0; border-top: 1px solid #ccc; margin: 15px 0; }
+.theme-control { margin-bottom: 15px; text-align: left; }
+.theme-control label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
+.theme-control select {
+    width: 100%;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    background-color: #f9f9f9;
+}
+
+/* UI Pulsanti & Menu */
+#settings-icon { position: absolute; top: 20px; right: 20px; font-size: 30px; cursor: pointer; z-index: 100; transition: transform 0.3s; }
+#settings-icon:hover { transform: rotate(90deg); }
+#settings-menu { position: absolute; top: 60px; right: 20px; background: white; border: 2px solid #8b4513; padding: 20px; border-radius: 10px; z-index: 101; width: 250px; text-align: left; }
+.switch-container { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+
 #game-over-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-content { background: white; padding: 40px; border-radius: 15px; text-align: center; border: 4px solid #8b4513; }
 .modal-buttons { display: flex; gap: 15px; justify-content: center; margin-top: 20px; }
 #winner-title { font-size: 3em; margin: 0; color: #8b4513; }
 #winner-message { font-size: 1.5em; margin: 20px 0; }
 
-#settings-icon { position: absolute; top: 20px; right: 20px; font-size: 30px; cursor: pointer; z-index: 4000; transition: transform 0.3s; }
-#settings-icon:hover { transform: rotate(90deg); }
-#settings-menu { position: absolute; top: 60px; right: 20px; background: white; border: 2px solid #8b4513; padding: 20px; border-radius: 10px; z-index: 4001; width: 250px; text-align: left; }
-.switch-container { display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 15px; }
-
-/* Impostazioni Tema */
-#settings-menu hr { border: 0; border-top: 1px solid #ccc; margin: 15px 0; }
-.theme-control { margin-bottom: 15px; text-align: left; }
-.theme-control label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
-.theme-control select { width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px; background-color: #f9f9f9; }
-
 button { padding: 15px 40px; font-size: 20px; background-color: #8b4513; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
 button:hover { background-color: #a0522d; transform: scale(1.05); }
 #main-menu { margin-top: 10px; padding: 40px; background-color: rgba(255,255,255,0.6); border-radius: 15px; display: inline-block; }
 
 @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-
-/* ========================================= */
-/* MODIFICHE PER MOBILE (TELEFONO)           */
-/* ========================================= */
-@media (max-width: 768px) {
-    /* 1. Nascondi la barra laterale (tabella mosse) */
-    #sidebar {
-        display: none !important;
-    }
-
-    /* 2. Resetta il layout per il mobile */
-    #game-layout {
-        margin-top: 0;
-        display: block; /* Non flex, blocchi uno sotto l'altro */
-    }
-
-    /* 3. Logo: In alto, centrato, NON FISSO a sinistra */
-    body.game-active #title-container {
-        position: relative !important;
-        top: auto; left: auto;
-        width: 100%;
-        text-align: center;
-        margin-bottom: 10px;
-        z-index: 10;
-    }
-
-    body.game-active #main-title {
-        max-width: 150px !important; /* Dimensione logo mobile */
-        width: auto;
-        display: inline-block;
-    }
-
-    /* 4. Scacchiera: Centrata e adattata allo schermo */
-    .board {
-        /* Calcola la dimensione delle celle in base alla larghezza dello schermo */
-        /* 9 celle * 10vw = 90% larghezza schermo circa */
-        grid-template-columns: repeat(9, 10vw); 
-        grid-template-rows: repeat(9, 10vw);
-        margin: 10px auto !important;
-    }
-
-    .cell {
-        width: 10vw;
-        height: 10vw;
-    }
-
-    .piece {
-        width: 8vw;
-        height: 8vw;
-    }
-    
-    .animating-piece {
-        /* Importante per l'animazione su mobile */
-        width: 8vw !important;
-        height: 8vw !important;
-    }
-
-    /* 5. Impostazioni: Sempre in alto a destra */
-    #settings-icon {
-        top: 15px;
-        right: 15px;
-    }
-    
-    #settings-menu {
-        right: 5px;
-        width: 90%; /* Menu più largo su mobile */
-    }
-
-    /* Riduce il padding del body */
-    body {
-        padding: 10px 5px;
-    }
-}
