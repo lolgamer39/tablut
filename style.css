@@ -1,0 +1,47 @@
+:root {
+    --bg-color: #f0e2d0;
+    --border-color: #8b4513;
+    --throne-color: #ffd700;
+    --escape-color: #90ee90;
+}
+
+.board {
+    display: grid;
+    grid-template-columns: repeat(9, 60px);
+    grid-template-rows: repeat(9, 60px);
+    gap: 1px;
+    background-color: var(--border-color);
+    border: 5px solid var(--border-color);
+    width: fit-content;
+    margin: 20px auto;
+}
+
+.cell {
+    width: 60px;
+    height: 60px;
+    background-color: var(--bg-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+}
+
+/* Caselle Speciali */
+.throne { background-color: var(--throne-color); }
+.escape { background-color: var(--escape-color); }
+
+/* Pezzi */
+.piece {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+}
+
+.white-piece { background-color: #fff; border: 2px solid #333; }
+.black-piece { background-color: #333; border: 2px solid #000; }
+.king { 
+    background-color: #fff; 
+    border: 4px solid gold; 
+    border-radius: 10px; /* Il Re lo facciamo quadrato arrotondato */
+}
