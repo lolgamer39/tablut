@@ -5,7 +5,7 @@
     --escape-color: #90ee90;
     --selection-color: rgba(0, 0, 0, 0.2);
     --hint-color: rgba(0, 0, 0, 0.25);
-    --coord-color: rgba(0, 0, 0, 0.5); /* Colore coordinate */
+    --coord-color: rgba(0, 0, 0, 0.5);
 }
 
 body {
@@ -18,7 +18,18 @@ body {
     overflow-x: hidden;
 }
 
-h1 { color: #5a3a22; margin-top: 10px; }
+/* --- TITOLO IMMAGINE --- */
+#title-container {
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+#main-title {
+    max-width: 600px; /* Larghezza massima per desktop */
+    width: 90%;       /* Su mobile occupa il 90% dello schermo */
+    height: auto;     /* Mantiene le proporzioni */
+    display: inline-block;
+}
 
 .hidden { display: none !important; }
 
@@ -29,7 +40,7 @@ h1 { color: #5a3a22; margin-top: 10px; }
     align-items: flex-start;
     gap: 20px;
     margin-top: 20px;
-    flex-wrap: wrap; /* Per mobile */
+    flex-wrap: wrap; 
 }
 
 /* --- SIDEBAR & TABELLA MOSSE --- */
@@ -72,7 +83,6 @@ h1 { color: #5a3a22; margin-top: 10px; }
 
 #move-table tr:nth-child(even) { background-color: #f9f9f9; }
 
-/* Controlli Navigazione */
 #history-controls {
     display: flex;
     gap: 10px;
@@ -82,7 +92,7 @@ h1 { color: #5a3a22; margin-top: 10px; }
 .nav-btn {
     padding: 5px 15px;
     font-size: 18px;
-    width: auto; /* Sovrascrive larghezza default */
+    width: auto; 
 }
 
 .secondary-btn {
@@ -101,17 +111,8 @@ h1 { color: #5a3a22; margin-top: 10px; }
     font-family: monospace;
 }
 
-/* Numeri (1-9): In alto a sinistra nella prima colonna */
-.coord-num {
-    top: 2px;
-    left: 4px;
-}
-
-/* Lettere (a-i): In basso a destra nell'ultima riga */
-.coord-letter {
-    bottom: 2px;
-    right: 4px;
-}
+.coord-num { top: 2px; left: 4px; }
+.coord-letter { bottom: 2px; right: 4px; }
 
 /* --- ICONA IMPOSTAZIONI --- */
 #settings-icon {
@@ -160,7 +161,7 @@ button:hover { background-color: #a0522d; transform: scale(1.05); }
 
 /* --- MENU INIZIALE --- */
 #main-menu { 
-    margin-top: 50px;
+    margin-top: 20px; /* Ridotto un po' dato che c'è l'immagine */
     padding: 40px;
     background-color: rgba(255,255,255,0.6);
     border-radius: 15px;
@@ -176,7 +177,6 @@ button:hover { background-color: #a0522d; transform: scale(1.05); }
     background-color: var(--border-color);
     border: 5px solid var(--border-color);
     width: fit-content;
-    /* margin: 20px auto; RIMOSSO per layout flex */
     user-select: none;
     box-shadow: 0 10px 25px rgba(0,0,0,0.4);
 }
