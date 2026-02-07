@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
@@ -10,11 +10,12 @@
     <h1>Tablut - La Sfida</h1>
 
     <div id="menu">
-        <p>Benvenuto nella variante classica di Linneo.</p>
+        <p>Benvenuto! Premi il pulsante per iniziare.</p>
         <button id="start-btn">Inizia Partita</button>
     </div>
 
-    <div id="game-ui" class="hidden">
+    <div id="game-wrapper" class="hidden">
+        
         <div id="status-panel">
             <span id="turn-indicator">Tocca a: <strong id="current-player">Muscoviti (Neri)</strong></span>
         </div>
@@ -23,9 +24,10 @@
             <div id="board" class="board"></div>
         </div>
         
-        <div id="restart-container" style="display:none; margin-top: 20px;">
+        <div id="restart-container" class="hidden">
             <button id="restart-btn">Gioca Ancora</button>
         </div>
+
     </div>
 
     <script src="js/main.js"></script>
