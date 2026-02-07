@@ -1,46 +1,33 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- GESTIONE EVENTI (LISTENER) ---
-
-    // Pulsanti Menu e Gioco
+    // --- GESTIONE EVENTI ---
     document.getElementById('start-btn').addEventListener('click', startGame);
     document.getElementById('play-again-btn').addEventListener('click', resetGame);
     document.getElementById('analyze-btn').addEventListener('click', goToAnalysis);
 
-    // Pulsanti Navigazione Storia (Mouse)
-    document.getElementById('btn-prev').addEventListener('click', showPrevMove);
-    document.getElementById('btn-next').addEventListener('click', showNextMove);
+    document.getElementById('btn-prev').addEventListener('click', () => navigateHistory(-1));
+    document.getElementById('btn-next').addEventListener('click', () => navigateHistory(1));
 
-    // Navigazione Storia (Tastiera)
     document.addEventListener('keydown', (e) => {
         if (gameWrapper.classList.contains('hidden')) return;
-
-        if (e.key === 'ArrowLeft') {
-            showPrevMove();
-        } else if (e.key === 'ArrowRight') {
-            showNextMove();
-        }
+        if (e.key === 'ArrowLeft') navigateHistory(-1);
+        else if (e.key === 'ArrowRight') navigateHistory(1);
     });
 
-    // Pulsanti Impostazioni (Ingranaggio)
+    // Impostazioni
     const settingsIcon = document.getElementById('settings-icon');
     const settingsMenu = document.getElementById('settings-menu');
     const closeSettings = document.getElementById('close-settings');
     const toggleHints = document.getElementById('toggle-hints');
 
-    settingsIcon.addEventListener('click', () => {
-        settingsMenu.classList.toggle('hidden');
-    });
-    closeSettings.addEventListener('click', () => {
-        settingsMenu.classList.add('hidden');
-    });
-
+    settingsIcon.addEventListener('click', () => settingsMenu.classList.toggle('hidden'));
+    closeSettings.addEventListener('click', () => settingsMenu.classList.add('hidden'));
     toggleHints.addEventListener('change', (e) => {
         gameOptions.showHints = e.target.checked;
         if (selectedCell) drawBoard();
     });
 });
 
-// --- VARIABILI DI STATO ---
+// --- VARIABILI GLOBALI ---
 const boardElement = document.getElementById('board');
 const currentPlayerSpan = document.getElementById('current-player');
 const gameWrapper = document.getElementById('game-wrapper');
@@ -49,22 +36,21 @@ const gameOverModal = document.getElementById('game-over-modal');
 const winnerTitle = document.getElementById('winner-title');
 const winnerMessage = document.getElementById('winner-message');
 const moveListBody = document.getElementById('move-list-body');
-const titleContainer = document.getElementById('title-container'); // Riferimento al titolo
+const titleContainer = document.getElementById('title-container');
 
 let selectedCell = null; 
 let currentTurn = 'black'; 
 let isGameOver = false;
 let boardState = [];
 
-// STORIA E LOG
+// STORIA, LOG E ANIMAZIONE
 let gameHistory = []; 
-let moveLog = [];     
+let moveLog = []; // Ora salveremo anche coordinate numeriche per l'animazione
 let currentHistoryIndex = 0; 
+let lastNavTime = 0; // Per gestire il click rapido
+let isAnimating = false; // Semaforo per evitare conflitti
 
-// Opzioni
-let gameOptions = {
-    showHints: true
-};
+let gameOptions = { showHints: true };
 
 const initialLayout = [
     [0, 0, 0, 3, 3, 3, 0, 0, 0],
@@ -78,24 +64,19 @@ const initialLayout = [
     [0, 0, 0, 3, 3, 3, 0, 0, 0]
 ];
 
-// --- FUNZIONI DI AVVIO E RESET ---
+// --- LOGICA GIOCO ---
 
 function startGame() {
-    // Gestione UI
     mainMenu.classList.add('hidden');
     gameWrapper.classList.remove('hidden');
     gameOverModal.classList.add('hidden');
-    
-    // SPOSTA IL TITOLO: Aggiunge la classe che lo rende piccolo e in alto a sinistra
     titleContainer.classList.add('in-game');
 
-    // Reset Variabili di Gioco
     boardState = JSON.parse(JSON.stringify(initialLayout));
     currentTurn = 'black';
     isGameOver = false;
     selectedCell = null;
     
-    // Reset Storia
     gameHistory = [JSON.parse(JSON.stringify(boardState))];
     moveLog = [];
     currentHistoryIndex = 0;
@@ -105,25 +86,148 @@ function startGame() {
     drawBoard();
 }
 
-function resetGame() {
-    startGame();
-}
+function resetGame() { startGame(); }
 
 function goToAnalysis() {
     const gameData = {
         history: gameHistory,
-        moves: moveLog,
+        moves: moveLog, // Passiamo il log arricchito
         winner: winnerTitle.innerText
     };
     localStorage.setItem('tablutAnalysisData', JSON.stringify(gameData));
     window.location.href = 'analysis/analysis.html';
 }
 
-// --- RENDERING (DISEGNO SCACCHIERA) ---
+// --- ENGINE ANIMAZIONE ---
+
+function animatePieceMovement(fromR, fromC, toR, toC, pieceVal, callback) {
+    // 1. Trova le coordinate pixel delle celle
+    const startCell = document.querySelector(`.cell[data-row='${fromR}'][data-col='${fromC}']`);
+    const endCell = document.querySelector(`.cell[data-row='${toR}'][data-col='${toC}']`);
+
+    if (!startCell || !endCell) { callback(); return; } // Sicurezza
+
+    const startRect = startCell.getBoundingClientRect();
+    const endRect = endCell.getBoundingClientRect();
+
+    // 2. Crea la pedina fantasma
+    const ghost = document.createElement('div');
+    ghost.classList.add('piece', 'animating-piece');
+    
+    // Assegna le classi corrette per il colore/tipo
+    if (pieceVal === 1) ghost.classList.add('white-piece');
+    else if (pieceVal === 2) { ghost.classList.add('white-piece', 'king'); }
+    else if (pieceVal === 3) ghost.classList.add('black-piece');
+
+    // 3. Posiziona inizialmente sulla partenza
+    ghost.style.width = startRect.width * 0.75 + 'px'; // Un po' più piccola della cella
+    ghost.style.height = startRect.height * 0.75 + 'px';
+    ghost.style.left = (startRect.left + (startRect.width * 0.125)) + 'px'; // Centrata
+    ghost.style.top = (startRect.top + (startRect.height * 0.125)) + 'px';
+
+    document.body.appendChild(ghost);
+
+    // 4. Forza il browser a disegnare il frame iniziale
+    requestAnimationFrame(() => {
+        // 5. Imposta la destinazione (CSS Transition farà il resto)
+        ghost.style.left = (endRect.left + (endRect.width * 0.125)) + 'px';
+        ghost.style.top = (endRect.top + (endRect.height * 0.125)) + 'px';
+
+        // 6. Alla fine, pulisci e chiama il callback
+        ghost.addEventListener('transitionend', () => {
+            ghost.remove();
+            callback();
+        }, { once: true });
+    });
+}
+
+// --- NAVIGAZIONE STORIA (CON ANIMAZIONE SMART) ---
+
+function navigateHistory(direction) {
+    const now = Date.now();
+    const isFast = (now - lastNavTime < 200); // Se clicchi più veloce di 200ms
+    lastNavTime = now;
+
+    if (isAnimating) return; // Evita sovrapposizioni strane
+
+    // LOGICA INDIETRO
+    if (direction === -1) {
+        if (currentHistoryIndex > 0) {
+            if (isFast) {
+                // Teletrasporto (Fast Rewind)
+                currentHistoryIndex--;
+                drawBoard();
+                updateNavButtons();
+            } else {
+                // Animazione (Play Rewind)
+                // Recuperiamo la mossa che stiamo annullando
+                const moveData = moveLog[currentHistoryIndex - 1]; 
+                // Animiamo AL CONTRARIO: da 'to' a 'from'
+                isAnimating = true;
+                
+                // Disegniamo subito lo stato PRECEDENTE (senza la pedina che si muove)
+                // Ma per farlo bene, disegniamo lo stato attuale PRIMA del cambio index,
+                // rimuoviamo visivamente la pedina che sta per tornare indietro, poi animiamo.
+                // METODO SEMPLIFICATO: Animiamo sopra la scacchiera attuale, poi cambiamo.
+                
+                // Quale pedina muovere? Quella che è in 'to' nello stato attuale.
+                const pieceVal = gameHistory[currentHistoryIndex][moveData.to.r][moveData.to.c];
+
+                animatePieceMovement(
+                    moveData.to.r, moveData.to.c, 
+                    moveData.from.r, moveData.from.c, 
+                    pieceVal, 
+                    () => {
+                        currentHistoryIndex--;
+                        drawBoard();
+                        updateNavButtons();
+                        isAnimating = false;
+                    }
+                );
+            }
+        }
+    } 
+    // LOGICA AVANTI
+    else if (direction === 1) {
+        if (currentHistoryIndex < gameHistory.length - 1) {
+            if (isFast) {
+                // Teletrasporto (Fast Forward)
+                currentHistoryIndex++;
+                drawBoard();
+                updateNavButtons();
+            } else {
+                // Animazione (Play Forward)
+                const moveData = moveLog[currentHistoryIndex];
+                isAnimating = true;
+
+                // Troviamo che pezzo è nello stato attuale alla partenza
+                const pieceVal = gameHistory[currentHistoryIndex][moveData.from.r][moveData.from.c];
+
+                animatePieceMovement(
+                    moveData.from.r, moveData.from.c, 
+                    moveData.to.r, moveData.to.c, 
+                    pieceVal, 
+                    () => {
+                        currentHistoryIndex++;
+                        drawBoard();
+                        updateNavButtons();
+                        isAnimating = false;
+                    }
+                );
+            }
+        }
+    }
+}
+
+function updateNavButtons() {
+    document.getElementById('btn-prev').disabled = (currentHistoryIndex === 0);
+    document.getElementById('btn-next').disabled = (currentHistoryIndex === gameHistory.length - 1);
+}
+
+// --- DISEGNO SCACCHIERA ---
 
 function drawBoard() {
     boardElement.innerHTML = '';
-    
     const stateToDraw = gameHistory[currentHistoryIndex];
     const isLatest = (currentHistoryIndex === gameHistory.length - 1);
 
@@ -141,35 +245,35 @@ function drawBoard() {
 
             // Coordinate
             if (r === 8) {
-                const letter = document.createElement('span');
-                letter.classList.add('coord', 'coord-letter');
-                letter.innerText = String.fromCharCode(97 + c);
-                cell.appendChild(letter);
+                const l = document.createElement('span');
+                l.classList.add('coord', 'coord-letter');
+                l.innerText = String.fromCharCode(97 + c);
+                cell.appendChild(l);
             }
             if (c === 0) {
-                const num = document.createElement('span');
-                num.classList.add('coord', 'coord-num');
-                num.innerText = 9 - r;
-                cell.appendChild(num);
+                const n = document.createElement('span');
+                n.classList.add('coord', 'coord-num');
+                n.innerText = 9 - r;
+                cell.appendChild(n);
             }
 
             // Colori speciali
             if (r === 4 && c === 4) cell.classList.add('throne');
             if ((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
 
-            // Evidenzia Selezione
+            // Selezione
             if (isLatest && selectedCell && selectedCell.r === r && selectedCell.c === c) {
                 cell.classList.add('selected');
             }
 
-            // Pallini Suggerimento
+            // Suggerimenti
             if (isLatest && possibleMoves.some(m => m.r === r && m.c === c)) {
                 const dot = document.createElement('div');
                 dot.classList.add('hint-dot');
                 cell.appendChild(dot);
             }
 
-            // Disegna Pezzi
+            // Pezzi
             const val = stateToDraw[r][c];
             if (val !== 0) {
                 const piece = document.createElement('div');
@@ -189,92 +293,13 @@ function drawBoard() {
             boardElement.appendChild(cell);
         }
     }
-    
     updateNavButtons();
 }
 
-// --- NAVIGAZIONE STORIA ---
-
-function showPrevMove() {
-    if (currentHistoryIndex > 0) {
-        currentHistoryIndex--;
-        drawBoard();
-    }
-}
-
-function showNextMove() {
-    if (currentHistoryIndex < gameHistory.length - 1) {
-        currentHistoryIndex++;
-        drawBoard();
-    }
-}
-
-function updateNavButtons() {
-    document.getElementById('btn-prev').disabled = (currentHistoryIndex === 0);
-    document.getElementById('btn-next').disabled = (currentHistoryIndex === gameHistory.length - 1);
-}
-
-// --- NOTAZIONE E TABELLA ---
-
-function getNotation(r, c) {
-    const file = String.fromCharCode(97 + c);
-    const rank = 9 - r;
-    return `${file}${rank}`;
-}
-
-function updateMoveTable() {
-    moveListBody.innerHTML = '';
-    
-    for (let i = 0; i < moveLog.length; i += 2) {
-        const row = document.createElement('tr');
-        
-        const numCell = document.createElement('td');
-        numCell.innerText = (i / 2) + 1 + ".";
-        row.appendChild(numCell);
-
-        const blackCell = document.createElement('td');
-        blackCell.innerText = moveLog[i].text;
-        row.appendChild(blackCell);
-
-        const whiteCell = document.createElement('td');
-        if (i + 1 < moveLog.length) {
-            whiteCell.innerText = moveLog[i+1].text;
-        }
-        row.appendChild(whiteCell);
-
-        moveListBody.appendChild(row);
-    }
-
-    const container = document.getElementById('move-history-container');
-    container.scrollTop = container.scrollHeight;
-}
-
-// --- LOGICA DI GIOCO ---
-
-function updateTurnUI() {
-    if (currentTurn === 'black') {
-        currentPlayerSpan.innerText = "Neri";
-        currentPlayerSpan.style.color = "black";
-    } else {
-        currentPlayerSpan.innerText = "Bianchi";
-        currentPlayerSpan.style.color = "#d4a017";
-    }
-}
-
-function getPossibleMoves(r, c) {
-    let moves = [];
-    for (let i = 0; i < 9; i++) {
-        for (let j = 0; j < 9; j++) {
-            if (boardState[i][j] === 0 && isValidMove(r, c, i, j)) {
-                moves.push({r: i, c: j});
-            }
-        }
-    }
-    return moves;
-}
+// --- MOSSE E REGOLE ---
 
 function onCellClick(r, c) {
-    if (isGameOver) return;
+    if (isGameOver || isAnimating) return; // Blocco click se animazione in corso
     const clickedVal = boardState[r][c];
     
     if (isMyPiece(clickedVal)) {
@@ -285,11 +310,83 @@ function onCellClick(r, c) {
 
     if (selectedCell && clickedVal === 0) {
         if (isValidMove(selectedCell.r, selectedCell.c, r, c)) {
-            movePiece(selectedCell.r, selectedCell.c, r, c);
+            // Invece di chiamare direttamente movePiece, avviamo l'animazione
+            const fromR = selectedCell.r;
+            const fromC = selectedCell.c;
+            const pieceVal = boardState[fromR][fromC];
+
+            isAnimating = true;
+            // 1. Anima
+            animatePieceMovement(fromR, fromC, r, c, pieceVal, () => {
+                // 2. Alla fine dell'animazione, esegui la logica logica
+                isAnimating = false;
+                movePiece(fromR, fromC, r, c);
+            });
+            
+            // Nota: Deselezioniamo subito per pulizia visiva (opzionale)
+            selectedCell = null;
+            drawBoard(); // Ridisegna senza selezione, la pedina ferma c'è ancora, il fantasma ci vola sopra
         }
     }
 }
 
+function movePiece(r1, c1, r2, c2) {
+    const piece = boardState[r1][c1];
+    boardState[r2][c2] = piece;
+    boardState[r1][c1] = 0;
+
+    // Log avanzato con coordinate reali per replay
+    const startNotation = getNotation(r1, c1);
+    const endNotation = getNotation(r2, c2);
+    
+    moveLog.push({
+        color: currentTurn,
+        text: `${startNotation}-${endNotation}`,
+        from: {r: r1, c: c1}, // Salviamo dati grezzi per l'animazione replay
+        to: {r: r2, c: c2}
+    });
+    
+    const newState = JSON.parse(JSON.stringify(boardState));
+    gameHistory.push(newState);
+    currentHistoryIndex++;
+
+    checkCaptures(r2, c2); // Nota: le catture avvengono "istantaneamente" a fine mossa
+    
+    if (checkWin()) return;
+
+    currentTurn = (currentTurn === 'white') ? 'black' : 'white';
+    updateMoveTable();
+    updateTurnUI();
+    drawBoard();
+}
+
+function getNotation(r, c) {
+    return `${String.fromCharCode(97 + c)}${9 - r}`;
+}
+
+function updateMoveTable() {
+    moveListBody.innerHTML = '';
+    for (let i = 0; i < moveLog.length; i += 2) {
+        const row = document.createElement('tr');
+        const num = document.createElement('td');
+        num.innerText = (i / 2) + 1 + ".";
+        row.appendChild(num);
+        
+        const black = document.createElement('td');
+        black.innerText = moveLog[i].text;
+        row.appendChild(black);
+
+        const white = document.createElement('td');
+        if (i + 1 < moveLog.length) white.innerText = moveLog[i+1].text;
+        row.appendChild(white);
+        
+        moveListBody.appendChild(row);
+    }
+    const container = document.getElementById('move-history-container');
+    container.scrollTop = container.scrollHeight;
+}
+
+// --- LOGICA REGOLE (Invariata) ---
 function isMyPiece(val) {
     if (currentTurn === 'white') return (val === 1 || val === 2);
     if (currentTurn === 'black') return (val === 3);
@@ -298,64 +395,24 @@ function isMyPiece(val) {
 
 function isValidMove(r1, c1, r2, c2) {
     const movingPiece = boardState[r1][c1];
-
     if (movingPiece === 2) {
-        const diffR = Math.abs(r1 - r2);
-        const diffC = Math.abs(c1 - c2);
-        if (diffR + diffC !== 1) return false;
+        if (Math.abs(r1 - r2) + Math.abs(c1 - c2) !== 1) return false;
         return true;
     }
-
     if (r1 !== r2 && c1 !== c2) return false;
-
     const dr = Math.sign(r2 - r1);
     const dc = Math.sign(c2 - c1);
     let nr = r1 + dr;
     let nc = c1 + dc;
-
     while (nr !== r2 || nc !== c2) {
         if (boardState[nr][nc] !== 0) return false; 
         if (nr === 4 && nc === 4) return false;    
         nr += dr;
         nc += dc;
     }
-
-    const isRestricted = (r2 === 4 && c2 === 4) || ((r2===0||r2===8) && (c2===0||c2===8));
-    if (isRestricted) return false;
-
+    if ((r2 === 4 && c2 === 4) || ((r2===0||r2===8) && (c2===0||c2===8))) return false;
     return true;
 }
-
-function movePiece(r1, c1, r2, c2) {
-    const piece = boardState[r1][c1];
-    boardState[r2][c2] = piece;
-    boardState[r1][c1] = 0;
-
-    const startNotation = getNotation(r1, c1);
-    const endNotation = getNotation(r2, c2);
-    const moveText = `${startNotation}-${endNotation}`; 
-    
-    moveLog.push({
-        color: currentTurn,
-        text: moveText
-    });
-    
-    const newState = JSON.parse(JSON.stringify(boardState));
-    gameHistory.push(newState);
-    currentHistoryIndex++;
-
-    updateMoveTable();
-    checkCaptures(r2, c2);
-    
-    if (checkWin()) return;
-
-    currentTurn = (currentTurn === 'white') ? 'black' : 'white';
-    selectedCell = null;
-    updateTurnUI();
-    drawBoard();
-}
-
-// --- CATTURE E VITTORIA ---
 
 function checkCaptures(r, c) {
     const dirs = [[-1,0], [1,0], [0,-1], [0,1]];
@@ -370,23 +427,17 @@ function checkCaptures(r, c) {
         const farC = c + (d[1] * 2);
 
         if (!isInBounds(adjR, adjC) || !isInBounds(farR, farC)) return;
-
         const neighbor = boardState[adjR][adjC];
         const far = boardState[farR][farC];
         const isEnemy = iAmWhite ? (neighbor === 3) : (neighbor === 1 || neighbor === 2);
 
         if (isEnemy) {
-            if (neighbor === 2) {
-                checkKingCapture(adjR, adjC);
-                return;
-            }
+            if (neighbor === 2) { checkKingCapture(adjR, adjC); return; }
             let anvil = false;
             if (far !== 0) {
                 const farIsFriend = iAmWhite ? (far === 1 || far === 2) : (far === 3);
                 if (farIsFriend) anvil = true;
-            } else if (isHostileStructure(farR, farC)) {
-                anvil = true;
-            }
+            } else if (isHostileStructure(farR, farC)) anvil = true;
 
             if (anvil) {
                 boardState[adjR][adjC] = 0;
@@ -394,7 +445,6 @@ function checkCaptures(r, c) {
             }
         }
     });
-
     if (captured) {
         gameHistory[currentHistoryIndex] = JSON.parse(JSON.stringify(boardState));
     }
@@ -402,9 +452,8 @@ function checkCaptures(r, c) {
 
 function checkKingCapture(kR, kC) {
     if (kR === 4 && kC === 4) {
-        const dirs = [[-1,0], [1,0], [0,-1], [0,1]];
         let enemies = 0;
-        dirs.forEach(d => {
+        [[-1,0], [1,0], [0,-1], [0,1]].forEach(d => {
             if (boardState[4+d[0]][4+d[1]] === 3) enemies++;
         });
         if (enemies === 4) {
@@ -413,38 +462,21 @@ function checkKingCapture(kR, kC) {
         }
     } else {
         const isBlack = (r, c) => (isInBounds(r,c) && boardState[r][c] === 3) || isHostileStructure(r,c);
-        
-        const vert = isBlack(kR-1, kC) && isBlack(kR+1, kC);
-        const horiz = isBlack(kR, kC-1) && isBlack(kR, kC+1);
-                      
-        if (vert || horiz) {
+        if ((isBlack(kR-1, kC) && isBlack(kR+1, kC)) || (isBlack(kR, kC-1) && isBlack(kR, kC+1))) {
             boardState[kR][kC] = 0;
             showVictory("Vittoria Neri!", "Il Re è caduto nell'imboscata!");
         }
     }
 }
 
-function isHostileStructure(r, c) {
-    if ((r===0||r===8) && (c===0||c===8)) return true;
-    if (r===4 && c===4) return true;
-    return false;
-}
-
-function checkWin() {
-    let king = null;
-    for(let r=0; r<9; r++) {
-        for(let c=0; c<9; c++) {
-            if(boardState[r][c] === 2) king = {r,c};
-        }
+function updateTurnUI() {
+    if (currentTurn === 'black') {
+        currentPlayerSpan.innerText = "Neri";
+        currentPlayerSpan.style.color = "black";
+    } else {
+        currentPlayerSpan.innerText = "Bianchi";
+        currentPlayerSpan.style.color = "#d4a017";
     }
-    
-    if (!king) return true; 
-
-    if ((king.r===0||king.r===8) && (king.c===0||king.c===8)) {
-        showVictory("Vittoria Bianchi!", "Il Re ha raggiunto la salvezza!");
-        return true;
-    }
-    return false;
 }
 
 function showVictory(title, msg) {
@@ -454,4 +486,7 @@ function showVictory(title, msg) {
     gameOverModal.classList.remove('hidden');
 }
 
+function isHostileStructure(r, c) {
+    return ((r===0||r===8) && (c===0||c===8)) || (r===4 && c===4);
+}
 function isInBounds(r, c) { return r>=0 && r<9 && c>=0 && c<9; }
