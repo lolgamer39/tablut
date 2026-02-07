@@ -257,3 +257,28 @@ button:hover { background-color: #a0522d; transform: scale(1.05); }
 
     .piece {
         width: 8vw;
+        height: 8vw;
+    }
+    
+    .animating-piece {
+        /* Importante per l'animazione su mobile */
+        width: 8vw !important;
+        height: 8vw !important;
+    }
+
+    /* 5. Impostazioni: Sempre in alto a destra */
+    #settings-icon {
+        top: 15px;
+        right: 15px;
+    }
+    
+    #settings-menu {
+        right: 5px;
+        width: 90%; /* Menu più largo su mobile */
+    }
+
+    /* Riduce il padding del body */
+    body {
+        padding: 10px 5px;
+    }
+}
