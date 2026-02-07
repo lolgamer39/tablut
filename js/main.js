@@ -1,5 +1,11 @@
+// --- SISTEMA DI SICUREZZA ERRORI ---
+window.onerror = function(message, source, lineno, colno, error) {
+    alert("ERRORE: " + message + "\nRiga: " + lineno);
+    return false;
+};
+
 document.addEventListener('DOMContentLoaded', () => {
-    // --- GESTIONE EVENTI ---
+    // Gestione Eventi
     const startBtn = document.getElementById('start-btn');
     if(startBtn) startBtn.addEventListener('click', startGame);
     
@@ -22,15 +28,16 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (e.key === 'ArrowRight') navigateHistory(1);
     });
 
-    const settingsIcon = document.getElementById('settings-icon');
-    const settingsMenu = document.getElementById('settings-menu');
+    // Impostazioni
+    const setIcon = document.getElementById('settings-icon');
+    const setMenu = document.getElementById('settings-menu');
     const closeSettings = document.getElementById('close-settings');
     const toggleHints = document.getElementById('toggle-hints');
     const bgSelect = document.getElementById('bg-select');
     const boardSelect = document.getElementById('board-select');
 
-    if(settingsIcon) settingsIcon.addEventListener('click', () => settingsMenu.classList.toggle('hidden'));
-    if(closeSettings) closeSettings.addEventListener('click', () => settingsMenu.classList.add('hidden'));
+    if(setIcon) setIcon.addEventListener('click', () => setMenu.classList.toggle('hidden'));
+    if(closeSettings) closeSettings.addEventListener('click', () => setMenu.classList.add('hidden'));
     
     if(toggleHints) {
         toggleHints.addEventListener('change', (e) => {
@@ -56,7 +63,7 @@ function applyTheme(type, value) {
     }
 }
 
-// --- GLOBALI ---
+// --- VARIABILI GLOBALI ---
 let selectedCell = null; 
 let currentTurn = 'black'; 
 let isGameOver = false;
@@ -80,7 +87,7 @@ const initialLayout = [
     [0, 0, 0, 3, 3, 3, 0, 0, 0]
 ];
 
-// --- LOGICA DI GIOCO ---
+// --- LOGICA GIOCO ---
 
 function startGame() {
     document.getElementById('main-menu').classList.add('hidden');
@@ -106,8 +113,8 @@ function startGame() {
 function resetGame() { startGame(); }
 
 function goToAnalysis() {
-    const winnerEl = document.getElementById('winner-title');
-    const winnerText = winnerEl ? winnerEl.innerText : "";
+    const wEl = document.getElementById('winner-title');
+    const winnerText = wEl ? wEl.innerText : "";
     const gameData = { history: gameHistory, moves: moveLog, winner: winnerText };
     localStorage.setItem('tablutAnalysisData', JSON.stringify(gameData));
     window.location.href = 'analysis/analysis.html';
@@ -116,76 +123,76 @@ function goToAnalysis() {
 function drawBoard() {
     const boardElement = document.getElementById('board');
     if (!boardElement) return;
-    boardElement.innerHTML = '';
     
-    let stateToDraw = initialLayout;
-    if (gameHistory && gameHistory.length > 0 && gameHistory[currentHistoryIndex]) {
-        stateToDraw = gameHistory[currentHistoryIndex];
-    } else {
-        gameHistory = [JSON.parse(JSON.stringify(initialLayout))];
-        currentHistoryIndex = 0;
-        stateToDraw = initialLayout;
-    }
-
-    const isLatest = (currentHistoryIndex === gameHistory.length - 1);
-    let possibleMoves = [];
-    
-    if (isLatest && !isGameOver && gameOptions.showHints && selectedCell) {
-        possibleMoves = getPossibleMoves(selectedCell.r, selectedCell.c, stateToDraw);
-    }
-
-    for (let r = 0; r < 9; r++) {
-        for (let c = 0; c < 9; c++) {
-            const cell = document.createElement('div');
-            cell.className = 'cell';
-            cell.dataset.row = r;
-            cell.dataset.col = c;
-
-            if (r === 8) cell.innerHTML += `<span class="coord coord-letter">${String.fromCharCode(97 + c)}</span>`;
-            if (c === 0) cell.innerHTML += `<span class="coord coord-num">${9 - r}</span>`;
-
-            if (r === 4 && c === 4) cell.classList.add('throne');
-            if ((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
-
-            if (isLatest && selectedCell && selectedCell.r === r && selectedCell.c === c) {
-                cell.classList.add('selected');
-            }
-
-            if (isLatest && possibleMoves.some(m => m.r === r && m.c === c)) {
-                const dot = document.createElement('div');
-                dot.className = 'hint-dot';
-                cell.appendChild(dot);
-            }
-
-            const val = stateToDraw[r][c];
-            if (val !== 0) {
-                const piece = document.createElement('div');
-                piece.className = 'piece';
-                if (val === 1) piece.classList.add('white-piece');
-                if (val === 2) { piece.classList.add('white-piece'); piece.classList.add('king'); }
-                if (val === 3) piece.classList.add('black-piece');
-                cell.appendChild(piece);
-            }
-
-            if (isLatest) {
-                cell.addEventListener('click', () => onCellClick(r, c));
-            } else {
-                cell.style.cursor = 'default';
-            }
-            
-            boardElement.appendChild(cell);
+    try {
+        boardElement.innerHTML = '';
+        
+        let stateToDraw = initialLayout;
+        if (gameHistory && gameHistory.length > 0 && gameHistory[currentHistoryIndex]) {
+            stateToDraw = gameHistory[currentHistoryIndex];
+        } else {
+            console.warn("Storia corrotta, reset...");
+            gameHistory = [JSON.parse(JSON.stringify(initialLayout))];
+            currentHistoryIndex = 0;
+            stateToDraw = initialLayout;
         }
+
+        const isLatest = (currentHistoryIndex === gameHistory.length - 1);
+        let possibleMoves = [];
+        
+        if (isLatest && !isGameOver && gameOptions.showHints && selectedCell) {
+            possibleMoves = getPossibleMoves(selectedCell.r, selectedCell.c, stateToDraw);
+        }
+
+        for (let r = 0; r < 9; r++) {
+            for (let c = 0; c < 9; c++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.row = r;
+                cell.dataset.col = c;
+
+                if (r === 8) cell.innerHTML += `<span class="coord coord-letter">${String.fromCharCode(97 + c)}</span>`;
+                if (c === 0) cell.innerHTML += `<span class="coord coord-num">${9 - r}</span>`;
+
+                if (r === 4 && c === 4) cell.classList.add('throne');
+                if ((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
+
+                if (isLatest && selectedCell && selectedCell.r === r && selectedCell.c === c) {
+                    cell.classList.add('selected');
+                }
+
+                if (isLatest && possibleMoves.some(m => m.r === r && m.c === c)) {
+                    const dot = document.createElement('div');
+                    dot.className = 'hint-dot';
+                    cell.appendChild(dot);
+                }
+
+                const val = stateToDraw[r][c];
+                if (val !== 0) {
+                    const piece = document.createElement('div');
+                    piece.className = 'piece';
+                    if (val === 1) piece.classList.add('white-piece');
+                    if (val === 2) { piece.classList.add('white-piece'); piece.classList.add('king'); }
+                    if (val === 3) piece.classList.add('black-piece');
+                    cell.appendChild(piece);
+                }
+
+                if (isLatest) {
+                    cell.addEventListener('click', () => onCellClick(r, c));
+                } else {
+                    cell.style.cursor = 'default';
+                }
+                boardElement.appendChild(cell);
+            }
+        }
+    } catch (e) {
+        alert("Errore Grafico: " + e.message);
+        boardElement.innerHTML = "<p style='color:white'>Errore. Ricarica.</p>";
     }
     updateNavButtons();
 }
 
-// --- NUOVA FUNZIONE PER PULIRE IMMEDIATAMENTE I SUGGERIMENTI ---
-function clearVisualHints() {
-    // Rimuovi tutti i pallini
-    document.querySelectorAll('.hint-dot').forEach(el => el.remove());
-    // Rimuovi la selezione (sfondo scuro)
-    document.querySelectorAll('.cell.selected').forEach(el => el.classList.remove('selected'));
-}
+// --- INTERAZIONE ---
 
 function onCellClick(r, c) {
     if (isGameOver || isAnimating) return; 
@@ -195,27 +202,29 @@ function onCellClick(r, c) {
 
     const clickedVal = currentState[r][c];
     
-    // SELEZIONE
+    // Selezione
     if (isMyPiece(clickedVal)) {
         selectedCell = { r, c };
         drawBoard(); 
         return;
     }
 
-    // MOVIMENTO
+    // Movimento
     if (selectedCell && clickedVal === 0) {
         if (isValidMove(selectedCell.r, selectedCell.c, r, c, currentState)) {
-            
-            // 1. BUG FIX: Pulisci subito i suggerimenti visivi
-            clearVisualHints();
-
             const fromR = selectedCell.r;
             const fromC = selectedCell.c;
             const pieceVal = currentState[fromR][fromC];
 
-            // 2. Resetta la selezione logica
-            selectedCell = null;
+            // 1. PULIZIA VISIVA IMMEDIATA (Fix richiesto)
+            const allDots = document.querySelectorAll('.hint-dot');
+            allDots.forEach(d => d.remove());
+            const allSels = document.querySelectorAll('.selected');
+            allSels.forEach(s => s.classList.remove('selected'));
+            
+            selectedCell = null; // Deseleziona logicamente
 
+            // 2. Animazione
             isAnimating = true;
             animatePieceMovement(fromR, fromC, r, c, pieceVal, () => {
                 isAnimating = false;
@@ -226,48 +235,49 @@ function onCellClick(r, c) {
 }
 
 function animatePieceMovement(fromR, fromC, toR, toC, pieceVal, callback) {
-    const startCell = document.querySelector(`.cell[data-row='${fromR}'][data-col='${fromC}']`);
-    const endCell = document.querySelector(`.cell[data-row='${toR}'][data-col='${toC}']`);
+    try {
+        const startCell = document.querySelector(`.cell[data-row='${fromR}'][data-col='${fromC}']`);
+        const endCell = document.querySelector(`.cell[data-row='${toR}'][data-col='${toC}']`);
 
-    if (!startCell || !endCell) { callback(); return; }
+        if (!startCell || !endCell) { callback(); return; }
 
-    const originalPiece = startCell.querySelector('.piece');
-    if (originalPiece) originalPiece.classList.add('invisible');
+        const originalPiece = startCell.querySelector('.piece');
+        if (originalPiece) originalPiece.classList.add('invisible');
 
-    const startRect = startCell.getBoundingClientRect();
-    const endRect = endCell.getBoundingClientRect();
+        const startRect = startCell.getBoundingClientRect();
+        const endRect = endCell.getBoundingClientRect();
 
-    const ghost = document.createElement('div');
-    ghost.className = 'piece animating-piece';
-    if (pieceVal === 1) ghost.classList.add('white-piece');
-    else if (pieceVal === 2) { ghost.classList.add('white-piece', 'king'); }
-    else if (pieceVal === 3) ghost.classList.add('black-piece');
+        const ghost = document.createElement('div');
+        ghost.className = 'piece animating-piece';
+        if (pieceVal === 1) ghost.classList.add('white-piece');
+        else if (pieceVal === 2) { ghost.classList.add('white-piece', 'king'); }
+        else if (pieceVal === 3) ghost.classList.add('black-piece');
 
-    // Dimensioni
-    const size = startRect.width * 0.8;
-    const offset = startRect.width * 0.1;
+        ghost.style.width = startRect.width * 0.8 + 'px';
+        ghost.style.height = startRect.height * 0.8 + 'px';
+        ghost.style.left = (startRect.left + startRect.width * 0.1) + 'px';
+        ghost.style.top = (startRect.top + startRect.height * 0.1) + 'px';
 
-    ghost.style.width = size + 'px'; 
-    ghost.style.height = size + 'px';
-    ghost.style.left = (startRect.left + offset) + 'px'; 
-    ghost.style.top = (startRect.top + offset) + 'px';
+        document.body.appendChild(ghost);
 
-    document.body.appendChild(ghost);
-
-    requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            ghost.style.left = (endRect.left + offset) + 'px';
-            ghost.style.top = (endRect.top + offset) + 'px';
+            requestAnimationFrame(() => {
+                ghost.style.left = (endRect.left + endRect.width * 0.1) + 'px';
+                ghost.style.top = (endRect.top + endRect.height * 0.1) + 'px';
+            });
         });
-    });
 
-    const finish = () => {
-        if(ghost.parentNode) ghost.remove();
-        callback();
-    };
-    ghost.addEventListener('transitionend', finish, { once: true });
-    // Timer di sicurezza (260ms) nel caso l'evento transitionend fallisca
-    setTimeout(finish, 260); 
+        const finish = () => {
+            if(ghost.parentNode) ghost.remove();
+            callback();
+        };
+        
+        ghost.addEventListener('transitionend', finish, { once: true });
+        setTimeout(finish, 300); // Safety Timer
+    } catch(e) {
+        console.error(e);
+        callback(); // Se l'animazione fallisce, procedi comunque
+    }
 }
 
 function executeMoveLogic(r1, c1, r2, c2) {
@@ -282,6 +292,7 @@ function executeMoveLogic(r1, c1, r2, c2) {
     
     gameHistory.push(newState);
     currentHistoryIndex++;
+    
     checkCaptures(r2, c2, newState);
     
     if (!checkWin(newState)) {
@@ -387,6 +398,19 @@ function isValidMove(r1, c1, r2, c2, state) {
     return true;
 }
 
+function getPossibleMoves(r, c, state) {
+    let moves = [];
+    const safeState = state || boardState;
+    for (let i = 0; i < 9; i++) {
+        for (let j = 0; j < 9; j++) {
+            if (safeState[i][j] === 0 && isValidMove(r, c, i, j, safeState)) {
+                moves.push({r: i, c: j});
+            }
+        }
+    }
+    return moves;
+}
+
 function checkCaptures(r, c, state) {
     const dirs = [[-1,0], [1,0], [0,-1], [0,1]];
     const me = state[r][c];
@@ -425,6 +449,15 @@ function checkKingCapture(kR, kC, state) {
     }
 }
 
+function checkWin(state) {
+    const s = state || gameHistory[currentHistoryIndex];
+    let king = null;
+    for(let r=0; r<9; r++) { for(let c=0; c<9; c++) { if(s[r][c] === 2) king = {r,c}; } }
+    if (!king) return true; 
+    if ((king.r===0||king.r===8) && (king.c===0||king.c===8)) { showVictory("Vittoria Bianchi!", "Il Re ha raggiunto la salvezza!"); return true; }
+    return false;
+}
+
 function updateTurnUI() {
     const el = document.getElementById('current-player');
     if(!el) return;
@@ -437,15 +470,6 @@ function showVictory(title, msg) {
     document.getElementById('winner-title').innerText = title; 
     document.getElementById('winner-message').innerText = msg; 
     document.getElementById('game-over-modal').classList.remove('hidden');
-}
-
-function checkWin(state) {
-    const s = state || gameHistory[currentHistoryIndex];
-    let king = null;
-    for(let r=0; r<9; r++) { for(let c=0; c<9; c++) { if(s[r][c] === 2) king = {r,c}; } }
-    if (!king) return true; 
-    if ((king.r===0||king.r===8) && (king.c===0||king.c===8)) { showVictory("Vittoria Bianchi!", "Il Re ha raggiunto la salvezza!"); return true; }
-    return false;
 }
 
 function isHostileStructure(r, c) { return ((r===0||r===8) && (c===0||c===8)) || (r===4 && c===4); }
