@@ -18,7 +18,7 @@ body {
     overflow-x: hidden;
 }
 
-/* --- TITOLO DINAMICO --- */
+/* --- LOGO DINAMICO --- */
 #title-container {
     margin-top: 20px;
     margin-bottom: 30px;
@@ -34,6 +34,7 @@ body {
     transition: all 0.5s ease-in-out;
 }
 
+/* Quando la partita è attiva, sposta il logo */
 body.game-active #title-container {
     position: fixed;
     top: 10px;
@@ -45,7 +46,7 @@ body.game-active #title-container {
 }
 
 body.game-active #main-title {
-    max-width: 120px; /* Logo piccolo in gioco */
+    max-width: 120px;
     width: 120px;
 }
 
@@ -83,32 +84,13 @@ body.game-active #main-title {
     border-collapse: collapse;
     font-size: 14px;
 }
-
-#move-table th {
-    background-color: #8b4513;
-    color: white;
-    padding: 5px;
-    position: sticky;
-    top: 0;
-}
-
-#move-table td {
-    padding: 4px;
-    border-bottom: 1px solid #eee;
-    text-align: center;
-}
-
+#move-table th { background-color: #8b4513; color: white; padding: 5px; position: sticky; top: 0; }
+#move-table td { padding: 4px; border-bottom: 1px solid #eee; text-align: center; }
 #move-table tr:nth-child(even) { background-color: #f9f9f9; }
 
-#history-controls {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-}
-
+#history-controls { display: flex; gap: 10px; justify-content: center; }
 .nav-btn { padding: 5px 15px; font-size: 18px; width: auto; }
 .secondary-btn { background-color: #555; margin-left: 10px; }
-.secondary-btn:hover { background-color: #333; }
 
 /* --- SCACCHIERA --- */
 .board {
@@ -131,16 +113,26 @@ body.game-active #main-title {
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    position: relative; /* <--- FONDAMENTALE: Se manca questo, la selezione rompe tutto */
+    position: relative; /* <--- FONDAMENTALE PER EVITARE BUG GRAFICI */
 }
 
-/* Selezione */
+/* Selezione e Pallini */
 .cell.selected::before {
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
     background-color: var(--selection-color);
     z-index: 1;
+}
+
+.hint-dot {
+    width: 20px;
+    height: 20px;
+    background-color: var(--hint-color);
+    border-radius: 50%;
+    position: absolute;
+    z-index: 5;
+    pointer-events: none;
 }
 
 .coord {
@@ -154,9 +146,11 @@ body.game-active #main-title {
 .coord-num { top: 2px; left: 4px; }
 .coord-letter { bottom: 2px; right: 4px; }
 
+/* Caselle Speciali */
 .throne { background-color: var(--throne-color); }
 .escape { background-color: var(--escape-color); }
 
+/* Pezzi */
 .piece {
     width: 44px;
     height: 44px;
@@ -166,16 +160,6 @@ body.game-active #main-title {
     z-index: 10;
     position: relative;
 }
-
-/* Animazione */
-.animating-piece {
-    position: fixed; 
-    z-index: 9999;   
-    transition: all 0.2s ease-in-out; 
-    pointer-events: none; 
-    box-shadow: 0 10px 20px rgba(0,0,0,0.5); 
-}
-
 .white-piece { background-color: #fff; border: 2px solid #333; }
 .black-piece { background-color: #333; border: 2px solid #000; }
 .king { 
@@ -189,39 +173,22 @@ body.game-active #main-title {
 }
 .king::after { content: none; }
 
-/* Banner e Pulsanti */
-#game-over-modal {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background-color: rgba(0,0,0,0.7);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
+/* Animazione */
+.animating-piece {
+    position: fixed; 
+    z-index: 9999;   
+    transition: all 0.2s ease-in-out; 
+    pointer-events: none; 
+    box-shadow: 0 10px 20px rgba(0,0,0,0.5); 
 }
-.modal-content {
-    background: white;
-    padding: 40px;
-    border-radius: 15px;
-    text-align: center;
-    border: 4px solid #8b4513;
-    box-shadow: 0 0 30px rgba(0,0,0,0.5);
-    animation: popIn 0.3s ease-out;
-}
-.modal-buttons { display: flex; gap: 15px; justify-content: center; margin-top: 20px; }
-#winner-title { font-size: 3em; margin: 0; color: #8b4513; }
-#winner-message { font-size: 1.5em; margin: 20px 0; }
 
-/* Menu Opzioni */
+/* UI Extra */
+#game-over-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.modal-content { background: white; padding: 40px; border-radius: 15px; text-align: center; border: 4px solid #8b4513; }
+.modal-buttons { display: flex; gap: 15px; justify-content: center; margin-top: 20px; }
 #settings-icon { position: absolute; top: 20px; right: 20px; font-size: 30px; cursor: pointer; z-index: 100; transition: transform 0.3s; }
 #settings-icon:hover { transform: rotate(90deg); }
-#settings-menu { position: absolute; top: 60px; right: 20px; background: white; border: 2px solid #8b4513; padding: 20px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); z-index: 101; text-align: left; width: 250px; }
-#settings-menu h3 { margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+#settings-menu { position: absolute; top: 60px; right: 20px; background: white; border: 2px solid #8b4513; padding: 20px; border-radius: 10px; z-index: 101; width: 250px; text-align: left; }
 .switch-container { display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 15px; }
-#close-settings { background: #ccc; color: #333; padding: 5px 15px; font-size: 14px; }
-
-button { padding: 15px 40px; font-size: 20px; background-color: #8b4513; color: white; border: none; border-radius: 8px; cursor: pointer; transition: transform 0.1s, background 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.2); font-weight: bold; }
-button:hover { background-color: #a0522d; transform: scale(1.05); }
+button { padding: 15px 40px; font-size: 20px; background-color: #8b4513; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
 #main-menu { margin-top: 10px; padding: 40px; background-color: rgba(255,255,255,0.6); border-radius: 15px; display: inline-block; }
-
-@keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
