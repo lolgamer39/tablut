@@ -15,10 +15,11 @@ body {
     margin: 0;
     padding: 20px;
     color: #333;
-    overflow-x: hidden;
+    overflow-x: hidden; /* Evita scroll laterale */
+    transition: background-color 0.5s ease;
 }
 
-/* --- LOGO DINAMICO --- */
+/* --- LOGO / TITOLO --- */
 #title-container {
     margin-top: 20px;
     margin-bottom: 30px;
@@ -34,7 +35,7 @@ body {
     transition: all 0.5s ease-in-out;
 }
 
-/* Desktop: Quando la partita è attiva, sposta il logo fisso a sinistra */
+/* STATO GIOCO ATTIVO (DESKTOP) */
 body.game-active #title-container {
     position: fixed;
     top: 10px;
@@ -53,7 +54,7 @@ body.game-active #main-title {
 .hidden { display: none !important; }
 .invisible { opacity: 0 !important; }
 
-/* --- LAYOUT GENERALE --- */
+/* --- LAYOUT DI GIOCO --- */
 #game-layout {
     display: flex;
     justify-content: center;
@@ -63,7 +64,7 @@ body.game-active #main-title {
     flex-wrap: wrap; 
 }
 
-/* --- BARRA LATERALE --- */
+/* --- BARRA LATERALE (STORIA) --- */
 #sidebar {
     width: 250px;
     background: white;
@@ -89,7 +90,6 @@ body.game-active #main-title {
 #history-controls { display: flex; gap: 10px; justify-content: center; }
 .nav-btn { padding: 5px 15px; font-size: 18px; width: auto; cursor: pointer; }
 .secondary-btn { background-color: #555; margin-left: 10px; }
-.secondary-btn:hover { background-color: #333; }
 
 /* --- SCACCHIERA --- */
 .board {
@@ -102,9 +102,10 @@ body.game-active #main-title {
     width: fit-content;
     user-select: none;
     box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-    /* Se la scacchiera non carica, evita il blocco marrone */
-    min-width: 300px; 
-    min-height: 300px;
+    /* Sicurezza per evitare collasso */
+    min-width: 270px;
+    min-height: 270px;
+    margin: 0 auto;
 }
 
 .cell {
@@ -115,7 +116,7 @@ body.game-active #main-title {
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    position: relative;
+    position: relative; /* FONDAMENTALE */
 }
 
 .cell.selected::before {
@@ -126,6 +127,7 @@ body.game-active #main-title {
     z-index: 1;
 }
 
+/* Coordinate */
 .coord {
     position: absolute;
     font-size: 10px;
@@ -147,6 +149,7 @@ body.game-active #main-title {
     pointer-events: none;
 }
 
+/* Caselle Speciali */
 .throne { background-color: var(--throne-color); }
 .escape { background-color: var(--escape-color); }
 
@@ -183,17 +186,23 @@ body.game-active #main-title {
 }
 .king::after { content: none; }
 
-/* --- UI EXTRA --- */
+/* UI Extra */
 #game-over-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-content { background: white; padding: 40px; border-radius: 15px; text-align: center; border: 4px solid #8b4513; }
 .modal-buttons { display: flex; gap: 15px; justify-content: center; margin-top: 20px; }
 #winner-title { font-size: 3em; margin: 0; color: #8b4513; }
 #winner-message { font-size: 1.5em; margin: 20px 0; }
 
-#settings-icon { position: absolute; top: 20px; right: 20px; font-size: 30px; cursor: pointer; z-index: 100; transition: transform 0.3s; }
+#settings-icon { position: absolute; top: 20px; right: 20px; font-size: 30px; cursor: pointer; z-index: 4000; transition: transform 0.3s; }
 #settings-icon:hover { transform: rotate(90deg); }
-#settings-menu { position: absolute; top: 60px; right: 20px; background: white; border: 2px solid #8b4513; padding: 20px; border-radius: 10px; z-index: 101; width: 250px; text-align: left; }
+#settings-menu { position: absolute; top: 60px; right: 20px; background: white; border: 2px solid #8b4513; padding: 20px; border-radius: 10px; z-index: 4001; width: 250px; text-align: left; }
 .switch-container { display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 15px; }
+
+/* Impostazioni Tema */
+#settings-menu hr { border: 0; border-top: 1px solid #ccc; margin: 15px 0; }
+.theme-control { margin-bottom: 15px; text-align: left; }
+.theme-control label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
+.theme-control select { width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px; background-color: #f9f9f9; }
 
 button { padding: 15px 40px; font-size: 20px; background-color: #8b4513; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
 button:hover { background-color: #a0522d; transform: scale(1.05); }
@@ -201,59 +210,50 @@ button:hover { background-color: #a0522d; transform: scale(1.05); }
 
 @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-/* --- VERSIONE MOBILE (Solo Telefono) --- */
+/* ========================================= */
+/* MODIFICHE PER MOBILE (TELEFONO)           */
+/* ========================================= */
 @media (max-width: 768px) {
-    /* 1. Nascondi la tabella delle mosse */
+    /* 1. Nascondi la barra laterale (tabella mosse) */
     #sidebar {
         display: none !important;
     }
 
-    /* 2. Scacchiera responsiva e centrata */
-    .board {
-        /* Riduciamo le celle per farle stare nello schermo del telefono */
-        grid-template-columns: repeat(9, 10vw); /* 10% della larghezza schermo */
-        grid-template-rows: repeat(9, 10vw);
-        margin: 0 auto;
+    /* 2. Resetta il layout per il mobile */
+    #game-layout {
+        margin-top: 0;
+        display: block; /* Non flex, blocchi uno sotto l'altro */
     }
-    
+
+    /* 3. Logo: In alto, centrato, NON FISSO a sinistra */
+    body.game-active #title-container {
+        position: relative !important;
+        top: auto; left: auto;
+        width: 100%;
+        text-align: center;
+        margin-bottom: 10px;
+        z-index: 10;
+    }
+
+    body.game-active #main-title {
+        max-width: 150px !important; /* Dimensione logo mobile */
+        width: auto;
+        display: inline-block;
+    }
+
+    /* 4. Scacchiera: Centrata e adattata allo schermo */
+    .board {
+        /* Calcola la dimensione delle celle in base alla larghezza dello schermo */
+        /* 9 celle * 10vw = 90% larghezza schermo circa */
+        grid-template-columns: repeat(9, 10vw); 
+        grid-template-rows: repeat(9, 10vw);
+        margin: 10px auto !important;
+    }
+
     .cell {
         width: 10vw;
         height: 10vw;
     }
-    
+
     .piece {
         width: 8vw;
-        height: 8vw;
-    }
-
-    /* 3. Logo in alto centrato (non fisso a sinistra) */
-    body.game-active #title-container {
-        position: static; /* Torna nel flusso normale della pagina */
-        text-align: center;
-        width: 100%;
-        margin-bottom: 10px;
-        margin-top: 40px; /* Spazio per le impostazioni in alto a destra */
-    }
-
-    body.game-active #main-title {
-        max-width: 150px; /* Un po' più visibile */
-        width: auto;
-    }
-
-    /* 4. Impostazioni sempre in alto a destra */
-    #settings-icon {
-        top: 10px;
-        right: 10px;
-        z-index: 4000; /* Sopra a tutto */
-    }
-
-    /* Layout generale */
-    #game-layout {
-        margin-top: 0;
-        gap: 0;
-    }
-    
-    body {
-        padding: 5px; /* Meno bordi su mobile */
-    }
-}
