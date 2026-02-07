@@ -20,7 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Toggle Hints
     toggleHints.addEventListener('change', (e) => {
         gameOptions.showHints = e.target.checked;
-        // Se ho un pezzo selezionato, aggiorno subito i pallini
         if (selectedCell) drawBoard();
     });
 });
@@ -82,7 +81,7 @@ function resetGame() {
 function drawBoard() {
     boardElement.innerHTML = '';
     
-    // Se le opzioni lo prevedono e c'è una selezione, calcoliamo le mosse possibili
+    // Calcolo suggerimenti se attivi
     let possibleMoves = [];
     if (gameOptions.showHints && selectedCell) {
         possibleMoves = getPossibleMoves(selectedCell.r, selectedCell.c);
@@ -99,13 +98,12 @@ function drawBoard() {
             if (r === 4 && c === 4) cell.classList.add('throne');
             if ((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
 
-            // 1. Evidenzia Selezione (Scurisce la casella)
+            // 1. Evidenzia Selezione
             if (selectedCell && selectedCell.r === r && selectedCell.c === c) {
                 cell.classList.add('selected');
             }
 
-            // 2. Disegna Pallino Suggerimento (Hint)
-            // Se questa casella (r,c) è nella lista delle mosse possibili
+            // 2. Disegna Pallino Suggerimento
             if (possibleMoves.some(m => m.r === r && m.c === c)) {
                 const dot = document.createElement('div');
                 dot.classList.add('hint-dot');
@@ -131,10 +129,10 @@ function drawBoard() {
 
 function updateTurnUI() {
     if (currentTurn === 'black') {
-        currentPlayerSpan.innerText = "Muscoviti (Neri)";
+        currentPlayerSpan.innerText = "Neri";
         currentPlayerSpan.style.color = "black";
     } else {
-        currentPlayerSpan.innerText = "Difensori (Bianchi)";
+        currentPlayerSpan.innerText = "Bianchi";
         currentPlayerSpan.style.color = "#d4a017";
     }
 }
@@ -142,10 +140,8 @@ function updateTurnUI() {
 // --- LOGICA SUGGERIMENTI ---
 function getPossibleMoves(r, c) {
     let moves = [];
-    // Controlla tutte le caselle della scacchiera
     for (let i = 0; i < 9; i++) {
         for (let j = 0; j < 9; j++) {
-            // Se la casella è vuota e la mossa è valida, è una mossa possibile
             if (boardState[i][j] === 0 && isValidMove(r, c, i, j)) {
                 moves.push({r: i, c: j});
             }
@@ -163,7 +159,7 @@ function onCellClick(r, c) {
     // Seleziona pezzo amico
     if (isMyPiece(clickedVal)) {
         selectedCell = { r, c };
-        drawBoard(); // Ridisegna per mostrare selezione e pallini
+        drawBoard(); 
         return;
     }
 
@@ -283,11 +279,10 @@ function checkKingCapture(kR, kC) {
         });
         if (enemies === 4) {
             boardState[4][4] = 0;
-            showVictory("Vittoria Muscoviti!", "I Neri hanno catturato il Re sul Trono!");
+            showVictory("Vittoria Neri!", "I Neri hanno catturato il Re sul Trono!");
         }
     } else {
-        // Re fuori dal trono -> morsa a 2 (controllo esplicito)
-        // Controllo se è stretto verticalmente o orizzontalmente
+        // Re fuori dal trono -> morsa a 2
         const isBlack = (r, c) => (isInBounds(r,c) && boardState[r][c] === 3) || isHostileStructure(r,c);
         
         const vert = isBlack(kR-1, kC) && isBlack(kR+1, kC);
@@ -295,7 +290,7 @@ function checkKingCapture(kR, kC) {
                       
         if (vert || horiz) {
             boardState[kR][kC] = 0;
-            showVictory("Vittoria Muscoviti!", "Il Re è caduto nell'imboscata!");
+            showVictory("Vittoria Neri!", "Il Re è caduto nell'imboscata!");
         }
     }
 }
@@ -314,10 +309,10 @@ function checkWin() {
         }
     }
     
-    if (!king) return true; // Già gestito in checkKingCapture
+    if (!king) return true; 
 
     if ((king.r===0||king.r===8) && (king.c===0||king.c===8)) {
-        showVictory("Vittoria Difensori!", "Il Re ha raggiunto la salvezza!");
+        showVictory("Vittoria Bianchi!", "Il Re ha raggiunto la salvezza!");
         return true;
     }
     return false;
@@ -327,8 +322,6 @@ function showVictory(title, msg) {
     isGameOver = true;
     winnerTitle.innerText = title;
     winnerMessage.innerText = msg;
-    
-    // Mostra il banner overlay invece dell'alert
     gameOverModal.classList.remove('hidden');
 }
 
