@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- GESTIONE EVENTI ---
+    // --- EVENTI ---
     const startBtn = document.getElementById('start-btn');
     if(startBtn) startBtn.addEventListener('click', startGame);
     
@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (e.key === 'ArrowRight') navigateHistory(1);
     });
 
+    // Impostazioni
     const settingsIcon = document.getElementById('settings-icon');
     const settingsMenu = document.getElementById('settings-menu');
     const closeSettings = document.getElementById('close-settings');
@@ -55,7 +56,7 @@ function applyTheme(type, value) {
     }
 }
 
-// --- GLOBALI ---
+// --- VARIABILI GLOBALI ---
 const boardElement = document.getElementById('board');
 const currentPlayerSpan = document.getElementById('current-player');
 const gameWrapper = document.getElementById('game-wrapper');
@@ -88,7 +89,7 @@ const initialLayout = [
     [0, 0, 0, 3, 3, 3, 0, 0, 0]
 ];
 
-// --- LOGICA ---
+// --- LOGICA GIOCO ---
 
 function startGame() {
     mainMenu.classList.add('hidden');
@@ -96,7 +97,7 @@ function startGame() {
     gameOverModal.classList.add('hidden');
     document.body.classList.add('game-active');
 
-    // Inizializzazione sicura
+    // Reset Totale e Sicuro
     boardState = JSON.parse(JSON.stringify(initialLayout));
     currentTurn = 'black';
     isGameOver = false;
@@ -122,14 +123,18 @@ function goToAnalysis() {
 
 function drawBoard() {
     if (!boardElement) return;
-    boardElement.innerHTML = ''; // Pulisce lo schermo
+    boardElement.innerHTML = '';
     
-    // Recupera lo stato corretto. Se fallisce, usa initialLayout.
+    // Recupero Sicuro dello Stato
     let stateToDraw = initialLayout;
-    if (gameHistory && gameHistory.length > 0 && gameHistory[currentHistoryIndex]) {
+    
+    // Controlla se la storia è valida, altrimenti ripara
+    if (gameHistory && gameHistory.length > 0) {
+        if (currentHistoryIndex < 0) currentHistoryIndex = 0;
+        if (currentHistoryIndex >= gameHistory.length) currentHistoryIndex = gameHistory.length - 1;
         stateToDraw = gameHistory[currentHistoryIndex];
     } else {
-        // Ripristino silenzioso se qualcosa si rompe
+        // Ripristino di emergenza
         gameHistory = [JSON.parse(JSON.stringify(initialLayout))];
         currentHistoryIndex = 0;
         stateToDraw = initialLayout;
@@ -138,7 +143,7 @@ function drawBoard() {
     const isLatest = (currentHistoryIndex === gameHistory.length - 1);
     let possibleMoves = [];
     
-    // Calcola mosse
+    // Calcolo mosse solo se non è game over e siamo nel presente
     if (isLatest && !isGameOver && gameOptions.showHints && selectedCell) {
         possibleMoves = getPossibleMoves(selectedCell.r, selectedCell.c, stateToDraw);
     }
@@ -207,9 +212,9 @@ function drawBoard() {
 function onCellClick(r, c) {
     if (isGameOver || isAnimating) return; 
     
-    // Usa sempre lo stato dalla storia
+    // Usa sempre lo stato sicuro dalla storia
     const currentState = gameHistory[currentHistoryIndex];
-    if(!currentState) return; // Sicurezza extra
+    if (!currentState) return;
 
     const clickedVal = currentState[r][c];
     
@@ -230,6 +235,7 @@ function onCellClick(r, c) {
                 isAnimating = false;
                 executeMoveLogic(fromR, fromC, r, c);
             });
+            
             selectedCell = null;
         }
     }
@@ -273,10 +279,11 @@ function animatePieceMovement(fromR, fromC, toR, toC, pieceVal, callback) {
         callback();
     };
     ghost.addEventListener('transitionend', finish, { once: true });
-    setTimeout(finish, 400); 
+    setTimeout(finish, 400); // Fallback di sicurezza
 }
 
 function executeMoveLogic(r1, c1, r2, c2) {
+    // Clonazione profonda sicura
     const newState = JSON.parse(JSON.stringify(gameHistory[currentHistoryIndex]));
     const piece = newState[r1][c1];
     newState[r2][c2] = piece;
@@ -298,7 +305,7 @@ function executeMoveLogic(r1, c1, r2, c2) {
     drawBoard();
 }
 
-// --- UTILS ---
+// --- UTILS & REGOLE ---
 function navigateHistory(direction) {
     if (isAnimating) return;
     const now = Date.now();
@@ -389,20 +396,6 @@ function isValidMove(r1, c1, r2, c2, state) {
     }
     if ((r2 === 4 && c2 === 4) || ((r2===0||r2===8) && (c2===0||c2===8))) return false;
     return true;
-}
-
-function getPossibleMoves(r, c, state) {
-    let moves = [];
-    // Controllo di sicurezza: se state è indefinito, usa boardState
-    const safeState = state || boardState;
-    for (let i = 0; i < 9; i++) {
-        for (let j = 0; j < 9; j++) {
-            if (safeState[i][j] === 0 && isValidMove(r, c, i, j, safeState)) {
-                moves.push({r: i, c: j});
-            }
-        }
-    }
-    return moves;
 }
 
 function checkCaptures(r, c, state) {
