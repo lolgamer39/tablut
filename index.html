@@ -11,11 +11,36 @@
     <div id="settings-icon">⚙️</div>
 
     <div id="settings-menu" class="hidden">
-        <h3>Opzioni</h3>
+        <h3>Opzioni di Gioco</h3>
         <label class="switch-container">
             <input type="checkbox" id="toggle-hints" checked>
             <span class="label-text">Mostra mosse possibili</span>
         </label>
+
+        <hr> <h3>Tema</h3>
+        
+        <div class="theme-control">
+            <label for="bg-select">Sfondo Sito</label>
+            <select id="bg-select">
+                <option value="classic">Classico (Beige)</option>
+                <option value="pearl">Perla (Grigio Chiaro)</option>
+                <option value="mint">Menta (Verde Tenue)</option>
+                <option value="ocean">Oceano (Blu Pallido)</option>
+                <option value="rose">Antico (Rosato)</option>
+            </select>
+        </div>
+
+        <div class="theme-control">
+            <label for="board-select">Scacchiera</label>
+            <select id="board-select">
+                <option value="wood">Legno (Originale)</option>
+                <option value="stone">Pietra (Grigio/Blu)</option>
+                <option value="sand">Sabbia (Giallo Tenue)</option>
+                <option value="ivory">Avorio (Minimal)</option>
+                <option value="forest">Foresta (Verde)</option>
+            </select>
+        </div>
+
         <button id="close-settings">Chiudi</button>
     </div>
 
@@ -29,7 +54,6 @@
     </div>
 
     <div id="game-wrapper" class="hidden">
-        
         <div id="game-layout">
             <div id="board-area">
                 <div id="status-panel">
@@ -49,18 +73,15 @@
                                 <th>Bianchi</th>
                             </tr>
                         </thead>
-                        <tbody id="move-list-body">
-                            </tbody>
+                        <tbody id="move-list-body"></tbody>
                     </table>
                 </div>
-
                 <div id="history-controls">
-                    <button id="btn-prev" class="nav-btn" title="Mossa Precedente">◀</button>
-                    <button id="btn-next" class="nav-btn" title="Mossa Successiva">▶</button>
+                    <button id="btn-prev" class="nav-btn" title="Indietro">◀</button>
+                    <button id="btn-next" class="nav-btn" title="Avanti">▶</button>
                 </div>
             </div>
         </div>
-
     </div>
 
     <div id="game-over-modal" class="hidden">
