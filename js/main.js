@@ -36,7 +36,7 @@ const gameOverModal = document.getElementById('game-over-modal');
 const winnerTitle = document.getElementById('winner-title');
 const winnerMessage = document.getElementById('winner-message');
 const moveListBody = document.getElementById('move-list-body');
-const titleContainer = document.getElementById('title-container');
+// Nota: titleContainer non è strettamente necessario qui perché usiamo document.body, ma lo lasciamo per coerenza
 
 let selectedCell = null; 
 let currentTurn = 'black'; 
@@ -45,10 +45,10 @@ let boardState = [];
 
 // STORIA, LOG E ANIMAZIONE
 let gameHistory = []; 
-let moveLog = []; // Ora salveremo anche coordinate numeriche per l'animazione
+let moveLog = []; 
 let currentHistoryIndex = 0; 
-let lastNavTime = 0; // Per gestire il click rapido
-let isAnimating = false; // Semaforo per evitare conflitti
+let lastNavTime = 0; 
+let isAnimating = false; 
 
 let gameOptions = { showHints: true };
 
@@ -70,7 +70,9 @@ function startGame() {
     mainMenu.classList.add('hidden');
     gameWrapper.classList.remove('hidden');
     gameOverModal.classList.add('hidden');
-    titleContainer.classList.add('in-game');
+    
+    // NUOVO: Attiva la modalità "In Gioco" sul body per spostare il logo
+    document.body.classList.add('game-active');
 
     boardState = JSON.parse(JSON.stringify(initialLayout));
     currentTurn = 'black';
@@ -91,7 +93,7 @@ function resetGame() { startGame(); }
 function goToAnalysis() {
     const gameData = {
         history: gameHistory,
-        moves: moveLog, // Passiamo il log arricchito
+        moves: moveLog,
         winner: winnerTitle.innerText
     };
     localStorage.setItem('tablutAnalysisData', JSON.stringify(gameData));
@@ -101,39 +103,32 @@ function goToAnalysis() {
 // --- ENGINE ANIMAZIONE ---
 
 function animatePieceMovement(fromR, fromC, toR, toC, pieceVal, callback) {
-    // 1. Trova le coordinate pixel delle celle
     const startCell = document.querySelector(`.cell[data-row='${fromR}'][data-col='${fromC}']`);
     const endCell = document.querySelector(`.cell[data-row='${toR}'][data-col='${toC}']`);
 
-    if (!startCell || !endCell) { callback(); return; } // Sicurezza
+    if (!startCell || !endCell) { callback(); return; }
 
     const startRect = startCell.getBoundingClientRect();
     const endRect = endCell.getBoundingClientRect();
 
-    // 2. Crea la pedina fantasma
     const ghost = document.createElement('div');
     ghost.classList.add('piece', 'animating-piece');
     
-    // Assegna le classi corrette per il colore/tipo
     if (pieceVal === 1) ghost.classList.add('white-piece');
     else if (pieceVal === 2) { ghost.classList.add('white-piece', 'king'); }
     else if (pieceVal === 3) ghost.classList.add('black-piece');
 
-    // 3. Posiziona inizialmente sulla partenza
-    ghost.style.width = startRect.width * 0.75 + 'px'; // Un po' più piccola della cella
+    ghost.style.width = startRect.width * 0.75 + 'px'; 
     ghost.style.height = startRect.height * 0.75 + 'px';
-    ghost.style.left = (startRect.left + (startRect.width * 0.125)) + 'px'; // Centrata
+    ghost.style.left = (startRect.left + (startRect.width * 0.125)) + 'px'; 
     ghost.style.top = (startRect.top + (startRect.height * 0.125)) + 'px';
 
     document.body.appendChild(ghost);
 
-    // 4. Forza il browser a disegnare il frame iniziale
     requestAnimationFrame(() => {
-        // 5. Imposta la destinazione (CSS Transition farà il resto)
         ghost.style.left = (endRect.left + (endRect.width * 0.125)) + 'px';
         ghost.style.top = (endRect.top + (endRect.height * 0.125)) + 'px';
 
-        // 6. Alla fine, pulisci e chiama il callback
         ghost.addEventListener('transitionend', () => {
             ghost.remove();
             callback();
@@ -141,36 +136,25 @@ function animatePieceMovement(fromR, fromC, toR, toC, pieceVal, callback) {
     });
 }
 
-// --- NAVIGAZIONE STORIA (CON ANIMAZIONE SMART) ---
+// --- NAVIGAZIONE STORIA ---
 
 function navigateHistory(direction) {
     const now = Date.now();
-    const isFast = (now - lastNavTime < 200); // Se clicchi più veloce di 200ms
+    const isFast = (now - lastNavTime < 200); 
     lastNavTime = now;
 
-    if (isAnimating) return; // Evita sovrapposizioni strane
+    if (isAnimating) return; 
 
-    // LOGICA INDIETRO
     if (direction === -1) {
         if (currentHistoryIndex > 0) {
             if (isFast) {
-                // Teletrasporto (Fast Rewind)
                 currentHistoryIndex--;
                 drawBoard();
                 updateNavButtons();
             } else {
-                // Animazione (Play Rewind)
-                // Recuperiamo la mossa che stiamo annullando
                 const moveData = moveLog[currentHistoryIndex - 1]; 
-                // Animiamo AL CONTRARIO: da 'to' a 'from'
                 isAnimating = true;
                 
-                // Disegniamo subito lo stato PRECEDENTE (senza la pedina che si muove)
-                // Ma per farlo bene, disegniamo lo stato attuale PRIMA del cambio index,
-                // rimuoviamo visivamente la pedina che sta per tornare indietro, poi animiamo.
-                // METODO SEMPLIFICATO: Animiamo sopra la scacchiera attuale, poi cambiamo.
-                
-                // Quale pedina muovere? Quella che è in 'to' nello stato attuale.
                 const pieceVal = gameHistory[currentHistoryIndex][moveData.to.r][moveData.to.c];
 
                 animatePieceMovement(
@@ -187,20 +171,16 @@ function navigateHistory(direction) {
             }
         }
     } 
-    // LOGICA AVANTI
     else if (direction === 1) {
         if (currentHistoryIndex < gameHistory.length - 1) {
             if (isFast) {
-                // Teletrasporto (Fast Forward)
                 currentHistoryIndex++;
                 drawBoard();
                 updateNavButtons();
             } else {
-                // Animazione (Play Forward)
                 const moveData = moveLog[currentHistoryIndex];
                 isAnimating = true;
 
-                // Troviamo che pezzo è nello stato attuale alla partenza
                 const pieceVal = gameHistory[currentHistoryIndex][moveData.from.r][moveData.from.c];
 
                 animatePieceMovement(
@@ -299,7 +279,7 @@ function drawBoard() {
 // --- MOSSE E REGOLE ---
 
 function onCellClick(r, c) {
-    if (isGameOver || isAnimating) return; // Blocco click se animazione in corso
+    if (isGameOver || isAnimating) return; 
     const clickedVal = boardState[r][c];
     
     if (isMyPiece(clickedVal)) {
@@ -310,22 +290,18 @@ function onCellClick(r, c) {
 
     if (selectedCell && clickedVal === 0) {
         if (isValidMove(selectedCell.r, selectedCell.c, r, c)) {
-            // Invece di chiamare direttamente movePiece, avviamo l'animazione
             const fromR = selectedCell.r;
             const fromC = selectedCell.c;
             const pieceVal = boardState[fromR][fromC];
 
             isAnimating = true;
-            // 1. Anima
             animatePieceMovement(fromR, fromC, r, c, pieceVal, () => {
-                // 2. Alla fine dell'animazione, esegui la logica logica
                 isAnimating = false;
                 movePiece(fromR, fromC, r, c);
             });
             
-            // Nota: Deselezioniamo subito per pulizia visiva (opzionale)
             selectedCell = null;
-            drawBoard(); // Ridisegna senza selezione, la pedina ferma c'è ancora, il fantasma ci vola sopra
+            drawBoard(); 
         }
     }
 }
@@ -335,14 +311,13 @@ function movePiece(r1, c1, r2, c2) {
     boardState[r2][c2] = piece;
     boardState[r1][c1] = 0;
 
-    // Log avanzato con coordinate reali per replay
     const startNotation = getNotation(r1, c1);
     const endNotation = getNotation(r2, c2);
     
     moveLog.push({
         color: currentTurn,
         text: `${startNotation}-${endNotation}`,
-        from: {r: r1, c: c1}, // Salviamo dati grezzi per l'animazione replay
+        from: {r: r1, c: c1}, 
         to: {r: r2, c: c2}
     });
     
@@ -350,7 +325,7 @@ function movePiece(r1, c1, r2, c2) {
     gameHistory.push(newState);
     currentHistoryIndex++;
 
-    checkCaptures(r2, c2); // Nota: le catture avvengono "istantaneamente" a fine mossa
+    checkCaptures(r2, c2);
     
     if (checkWin()) return;
 
@@ -386,7 +361,7 @@ function updateMoveTable() {
     container.scrollTop = container.scrollHeight;
 }
 
-// --- LOGICA REGOLE (Invariata) ---
+// --- LOGICA REGOLE ---
 function isMyPiece(val) {
     if (currentTurn === 'white') return (val === 1 || val === 2);
     if (currentTurn === 'black') return (val === 3);
