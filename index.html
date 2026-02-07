@@ -2,6 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tablut - La Sfida</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -9,16 +10,21 @@
     <h1>Tablut - La Sfida</h1>
 
     <div id="menu">
-        <button id="start-btn" onclick="startGame()">Inizia Partita</button>
+        <p>Benvenuto nella variante classica di Linneo.</p>
+        <button id="start-btn">Inizia Partita</button>
     </div>
 
-    <div id="game-ui" style="display: none;">
+    <div id="game-ui" class="hidden">
         <div id="status-panel">
             <span id="turn-indicator">Tocca a: <strong id="current-player">Muscoviti (Neri)</strong></span>
         </div>
         
         <div id="game-container">
             <div id="board" class="board"></div>
+        </div>
+        
+        <div id="restart-container" style="display:none; margin-top: 20px;">
+            <button id="restart-btn">Gioca Ancora</button>
         </div>
     </div>
 
