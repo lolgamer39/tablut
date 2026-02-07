@@ -2,6 +2,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Pulsanti Gioco
     document.getElementById('start-btn').addEventListener('click', startGame);
     document.getElementById('play-again-btn').addEventListener('click', resetGame);
+    document.getElementById('analyze-btn').addEventListener('click', goToAnalysis);
+
+    // Pulsanti Navigazione Storia
+    document.getElementById('btn-prev').addEventListener('click', showPrevMove);
+    document.getElementById('btn-next').addEventListener('click', showNextMove);
 
     // Pulsanti Impostazioni
     const settingsIcon = document.getElementById('settings-icon');
@@ -32,13 +37,19 @@ const mainMenu = document.getElementById('main-menu');
 const gameOverModal = document.getElementById('game-over-modal');
 const winnerTitle = document.getElementById('winner-title');
 const winnerMessage = document.getElementById('winner-message');
+const moveListBody = document.getElementById('move-list-body');
 
 let selectedCell = null; 
 let currentTurn = 'black'; 
 let isGameOver = false;
 let boardState = [];
 
-// Opzioni modificabili
+// STORIA DELLA PARTITA
+let gameHistory = []; // Contiene tutti gli stati della scacchiera
+let moveLog = []; // Contiene la descrizione testuale delle mosse
+let currentHistoryIndex = 0; // Dove siamo "nel tempo"
+
+// Opzioni
 let gameOptions = {
     showHints: true
 };
@@ -68,6 +79,12 @@ function startGame() {
     isGameOver = false;
     selectedCell = null;
     
+    // Reset Storia
+    gameHistory = [JSON.parse(JSON.stringify(boardState))];
+    moveLog = [];
+    currentHistoryIndex = 0;
+    updateMoveTable();
+
     updateTurnUI();
     drawBoard();
 }
@@ -76,14 +93,31 @@ function resetGame() {
     startGame();
 }
 
+function goToAnalysis() {
+    // Salviamo lo stato attuale nel browser per passarlo all'altra pagina
+    const gameData = {
+        history: gameHistory,
+        moves: moveLog,
+        winner: winnerTitle.innerText
+    };
+    localStorage.setItem('tablutAnalysisData', JSON.stringify(gameData));
+    
+    // Reindirizza (presuppone che creerai la cartella analysis)
+    window.location.href = 'analysis/analysis.html';
+}
+
 // --- RENDER ---
 
 function drawBoard() {
     boardElement.innerHTML = '';
     
-    // Calcolo suggerimenti se attivi
+    // Se non siamo all'ultima mossa, stiamo guardando il passato: usiamo la storia
+    const stateToDraw = gameHistory[currentHistoryIndex];
+    const isLatest = (currentHistoryIndex === gameHistory.length - 1);
+
+    // Calcolo suggerimenti SOLO se siamo nel presente e non è game over
     let possibleMoves = [];
-    if (gameOptions.showHints && selectedCell) {
+    if (isLatest && !isGameOver && gameOptions.showHints && selectedCell) {
         possibleMoves = getPossibleMoves(selectedCell.r, selectedCell.c);
     }
 
@@ -94,24 +128,40 @@ function drawBoard() {
             cell.dataset.row = r;
             cell.dataset.col = c;
 
+            // --- COORDINATE ---
+            // Lettere (a-i) in basso (riga 8)
+            if (r === 8) {
+                const letter = document.createElement('span');
+                letter.classList.add('coord', 'coord-letter');
+                letter.innerText = String.fromCharCode(97 + c); // 97 = 'a'
+                cell.appendChild(letter);
+            }
+            // Numeri (1-9) a sinistra (colonna 0)
+            if (c === 0) {
+                const num = document.createElement('span');
+                num.classList.add('coord', 'coord-num');
+                num.innerText = 9 - r; // La riga 0 è il 9, la riga 8 è l'1
+                cell.appendChild(num);
+            }
+
             // Colori speciali
             if (r === 4 && c === 4) cell.classList.add('throne');
             if ((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
 
-            // 1. Evidenzia Selezione
-            if (selectedCell && selectedCell.r === r && selectedCell.c === c) {
+            // Evidenzia Selezione (solo se siamo nel presente)
+            if (isLatest && selectedCell && selectedCell.r === r && selectedCell.c === c) {
                 cell.classList.add('selected');
             }
 
-            // 2. Disegna Pallino Suggerimento
-            if (possibleMoves.some(m => m.r === r && m.c === c)) {
+            // Pallino Suggerimento
+            if (isLatest && possibleMoves.some(m => m.r === r && m.c === c)) {
                 const dot = document.createElement('div');
                 dot.classList.add('hint-dot');
                 cell.appendChild(dot);
             }
 
             // Disegna Pezzi
-            const val = boardState[r][c];
+            const val = stateToDraw[r][c];
             if (val !== 0) {
                 const piece = document.createElement('div');
                 piece.classList.add('piece');
@@ -121,11 +171,85 @@ function drawBoard() {
                 cell.appendChild(piece);
             }
 
-            cell.addEventListener('click', () => onCellClick(r, c));
+            // Click event (attivo solo nel presente)
+            if (isLatest) {
+                cell.addEventListener('click', () => onCellClick(r, c));
+            } else {
+                cell.style.cursor = 'default'; // Cursore normale se stiamo guardando il passato
+            }
+            
             boardElement.appendChild(cell);
         }
     }
+    
+    updateNavButtons();
 }
+
+// --- NAVIGAZIONE STORIA ---
+
+function showPrevMove() {
+    if (currentHistoryIndex > 0) {
+        currentHistoryIndex--;
+        drawBoard();
+    }
+}
+
+function showNextMove() {
+    if (currentHistoryIndex < gameHistory.length - 1) {
+        currentHistoryIndex++;
+        drawBoard();
+    }
+}
+
+function updateNavButtons() {
+    document.getElementById('btn-prev').disabled = (currentHistoryIndex === 0);
+    document.getElementById('btn-next').disabled = (currentHistoryIndex === gameHistory.length - 1);
+}
+
+// --- LOGICA NOTAZIONE E TABELLA ---
+
+function getNotation(r, c) {
+    const file = String.fromCharCode(97 + c); // a, b, c...
+    const rank = 9 - r; // 9, 8, 7...
+    return `${file}${rank}`;
+}
+
+function updateMoveTable() {
+    moveListBody.innerHTML = '';
+    
+    // moveLog contiene oggetti: { color: 'white', text: 'e4-d4' }
+    // Dobbiamo raggrupparli a coppie (Nero, Bianco) perché iniziano i Neri
+    
+    for (let i = 0; i < moveLog.length; i += 2) {
+        const row = document.createElement('tr');
+        
+        // Numero turno
+        const numCell = document.createElement('td');
+        numCell.innerText = (i / 2) + 1 + ".";
+        row.appendChild(numCell);
+
+        // Mossa Nero
+        const blackCell = document.createElement('td');
+        blackCell.innerText = moveLog[i].text;
+        row.appendChild(blackCell);
+
+        // Mossa Bianco (se esiste)
+        const whiteCell = document.createElement('td');
+        if (i + 1 < moveLog.length) {
+            whiteCell.innerText = moveLog[i+1].text;
+        }
+        row.appendChild(whiteCell);
+
+        moveListBody.appendChild(row);
+    }
+
+    // Scrolla la tabella in basso
+    const container = document.getElementById('move-history-container');
+    container.scrollTop = container.scrollHeight;
+}
+
+
+// --- LOGICA DI GIOCO STANDARD ---
 
 function updateTurnUI() {
     if (currentTurn === 'black') {
@@ -137,7 +261,6 @@ function updateTurnUI() {
     }
 }
 
-// --- LOGICA SUGGERIMENTI ---
 function getPossibleMoves(r, c) {
     let moves = [];
     for (let i = 0; i < 9; i++) {
@@ -150,25 +273,19 @@ function getPossibleMoves(r, c) {
     return moves;
 }
 
-// --- LOGICA MOVIMENTO ---
-
 function onCellClick(r, c) {
     if (isGameOver) return;
     const clickedVal = boardState[r][c];
     
-    // Seleziona pezzo amico
     if (isMyPiece(clickedVal)) {
         selectedCell = { r, c };
         drawBoard(); 
         return;
     }
 
-    // Muovi in casella vuota
     if (selectedCell && clickedVal === 0) {
         if (isValidMove(selectedCell.r, selectedCell.c, r, c)) {
             movePiece(selectedCell.r, selectedCell.c, r, c);
-        } else {
-            console.log("Mossa non valida");
         }
     }
 }
@@ -182,7 +299,6 @@ function isMyPiece(val) {
 function isValidMove(r1, c1, r2, c2) {
     const movingPiece = boardState[r1][c1];
 
-    // Re: muove di 1 casella
     if (movingPiece === 2) {
         const diffR = Math.abs(r1 - r2);
         const diffC = Math.abs(c1 - c2);
@@ -190,7 +306,6 @@ function isValidMove(r1, c1, r2, c2) {
         return true;
     }
 
-    // Altri pezzi: Torre
     if (r1 !== r2 && c1 !== c2) return false;
 
     const dr = Math.sign(r2 - r1);
@@ -200,13 +315,11 @@ function isValidMove(r1, c1, r2, c2) {
 
     while (nr !== r2 || nc !== c2) {
         if (boardState[nr][nc] !== 0) return false; 
-        // Trono vuoto blocca i soldati
         if (nr === 4 && nc === 4) return false; 
         nr += dr;
         nc += dc;
     }
 
-    // Caselle proibite ai soldati
     const isRestricted = (r2 === 4 && c2 === 4) || ((r2===0||r2===8) && (c2===0||c2===8));
     if (isRestricted) return false;
 
@@ -218,6 +331,25 @@ function movePiece(r1, c1, r2, c2) {
     boardState[r2][c2] = piece;
     boardState[r1][c1] = 0;
 
+    // --- REGISTRAZIONE MOSSA ---
+    const startNotation = getNotation(r1, c1);
+    const endNotation = getNotation(r2, c2);
+    const moveText = `${startNotation}-${endNotation}`; // Es: e4-d4
+    
+    moveLog.push({
+        color: currentTurn,
+        text: moveText
+    });
+    
+    // --- SALVATAGGIO STATO ---
+    // Cloniamo lo stato attuale e lo aggiungiamo alla storia
+    const newState = JSON.parse(JSON.stringify(boardState));
+    gameHistory.push(newState);
+    currentHistoryIndex++;
+
+    updateMoveTable();
+
+    // --- CONTROLLI STANDARD ---
     checkCaptures(r2, c2);
     
     if (checkWin()) return;
@@ -227,8 +359,6 @@ function movePiece(r1, c1, r2, c2) {
     updateTurnUI();
     drawBoard();
 }
-
-// --- CATTURE E VITTORIA ---
 
 function checkCaptures(r, c) {
     const dirs = [[-1,0], [1,0], [0,-1], [0,1]];
@@ -248,12 +378,10 @@ function checkCaptures(r, c) {
         const isEnemy = iAmWhite ? (neighbor === 3) : (neighbor === 1 || neighbor === 2);
 
         if (isEnemy) {
-            // Caso Re
             if (neighbor === 2) {
                 checkKingCapture(adjR, adjC);
                 return;
             }
-            // Caso Soldato
             let anvil = false;
             if (far !== 0) {
                 const farIsFriend = iAmWhite ? (far === 1 || far === 2) : (far === 3);
@@ -264,13 +392,14 @@ function checkCaptures(r, c) {
 
             if (anvil) {
                 boardState[adjR][adjC] = 0;
+                // Aggiorna anche l'ultimo stato della storia per riflettere la cattura
+                gameHistory[currentHistoryIndex] = JSON.parse(JSON.stringify(boardState));
             }
         }
     });
 }
 
 function checkKingCapture(kR, kC) {
-    // Re sul trono (4,4) -> 4 lati
     if (kR === 4 && kC === 4) {
         const dirs = [[-1,0], [1,0], [0,-1], [0,1]];
         let enemies = 0;
@@ -282,7 +411,6 @@ function checkKingCapture(kR, kC) {
             showVictory("Vittoria Neri!", "I Neri hanno catturato il Re sul Trono!");
         }
     } else {
-        // Re fuori dal trono -> morsa a 2
         const isBlack = (r, c) => (isInBounds(r,c) && boardState[r][c] === 3) || isHostileStructure(r,c);
         
         const vert = isBlack(kR-1, kC) && isBlack(kR+1, kC);
