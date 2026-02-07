@@ -1,22 +1,49 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Colleghiamo i pulsanti
+    // Pulsanti Gioco
     document.getElementById('start-btn').addEventListener('click', startGame);
-    document.getElementById('restart-btn').addEventListener('click', resetGame);
+    document.getElementById('play-again-btn').addEventListener('click', resetGame);
+
+    // Pulsanti Impostazioni
+    const settingsIcon = document.getElementById('settings-icon');
+    const settingsMenu = document.getElementById('settings-menu');
+    const closeSettings = document.getElementById('close-settings');
+    const toggleHints = document.getElementById('toggle-hints');
+
+    // Toggle Menu
+    settingsIcon.addEventListener('click', () => {
+        settingsMenu.classList.toggle('hidden');
+    });
+    closeSettings.addEventListener('click', () => {
+        settingsMenu.classList.add('hidden');
+    });
+
+    // Toggle Hints
+    toggleHints.addEventListener('change', (e) => {
+        gameOptions.showHints = e.target.checked;
+        // Se ho un pezzo selezionato, aggiorno subito i pallini
+        if (selectedCell) drawBoard();
+    });
 });
 
-// --- VARIABILI GLOBALI ---
+// --- STATO DEL GIOCO ---
 const boardElement = document.getElementById('board');
 const currentPlayerSpan = document.getElementById('current-player');
-const gameWrapper = document.getElementById('game-wrapper'); // Contiene tutto il gioco
-const menu = document.getElementById('menu');
-const restartContainer = document.getElementById('restart-container');
+const gameWrapper = document.getElementById('game-wrapper');
+const mainMenu = document.getElementById('main-menu');
+const gameOverModal = document.getElementById('game-over-modal');
+const winnerTitle = document.getElementById('winner-title');
+const winnerMessage = document.getElementById('winner-message');
 
 let selectedCell = null; 
 let currentTurn = 'black'; 
 let isGameOver = false;
 let boardState = [];
 
-// Layout Iniziale
+// Opzioni modificabili
+let gameOptions = {
+    showHints: true
+};
+
 const initialLayout = [
     [0, 0, 0, 3, 3, 3, 0, 0, 0],
     [0, 0, 0, 0, 3, 0, 0, 0, 0],
@@ -29,17 +56,14 @@ const initialLayout = [
     [0, 0, 0, 3, 3, 3, 0, 0, 0]
 ];
 
-// --- GESTIONE INTERFACCIA ---
+// --- GESTIONE PARTITA ---
 
 function startGame() {
-    // 1. Nascondi il menu
-    menu.classList.add('hidden');
-    
-    // 2. Mostra il gioco (rimuovi la classe hidden)
+    mainMenu.classList.add('hidden');
     gameWrapper.classList.remove('hidden');
-    restartContainer.classList.add('hidden'); // Assicurati che il tasto restart sia nascosto
+    gameOverModal.classList.add('hidden');
 
-    // 3. Inizializza variabili
+    // Reset Variabili
     boardState = JSON.parse(JSON.stringify(initialLayout));
     currentTurn = 'black';
     isGameOver = false;
@@ -50,21 +74,20 @@ function startGame() {
 }
 
 function resetGame() {
-    // Torna allo stato iniziale come se avessi premuto start
-    boardState = JSON.parse(JSON.stringify(initialLayout));
-    currentTurn = 'black';
-    isGameOver = false;
-    selectedCell = null;
-    
-    restartContainer.classList.add('hidden');
-    updateTurnUI();
-    drawBoard();
+    startGame();
 }
 
 // --- RENDER ---
 
 function drawBoard() {
     boardElement.innerHTML = '';
+    
+    // Se le opzioni lo prevedono e c'è una selezione, calcoliamo le mosse possibili
+    let possibleMoves = [];
+    if (gameOptions.showHints && selectedCell) {
+        possibleMoves = getPossibleMoves(selectedCell.r, selectedCell.c);
+    }
+
     for (let r = 0; r < 9; r++) {
         for (let c = 0; c < 9; c++) {
             const cell = document.createElement('div');
@@ -76,9 +99,17 @@ function drawBoard() {
             if (r === 4 && c === 4) cell.classList.add('throne');
             if ((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
 
-            // Evidenzia selezione
+            // 1. Evidenzia Selezione (Scurisce la casella)
             if (selectedCell && selectedCell.r === r && selectedCell.c === c) {
                 cell.classList.add('selected');
+            }
+
+            // 2. Disegna Pallino Suggerimento (Hint)
+            // Se questa casella (r,c) è nella lista delle mosse possibili
+            if (possibleMoves.some(m => m.r === r && m.c === c)) {
+                const dot = document.createElement('div');
+                dot.classList.add('hint-dot');
+                cell.appendChild(dot);
             }
 
             // Disegna Pezzi
@@ -108,6 +139,21 @@ function updateTurnUI() {
     }
 }
 
+// --- LOGICA SUGGERIMENTI ---
+function getPossibleMoves(r, c) {
+    let moves = [];
+    // Controlla tutte le caselle della scacchiera
+    for (let i = 0; i < 9; i++) {
+        for (let j = 0; j < 9; j++) {
+            // Se la casella è vuota e la mossa è valida, è una mossa possibile
+            if (boardState[i][j] === 0 && isValidMove(r, c, i, j)) {
+                moves.push({r: i, c: j});
+            }
+        }
+    }
+    return moves;
+}
+
 // --- LOGICA MOVIMENTO ---
 
 function onCellClick(r, c) {
@@ -117,7 +163,7 @@ function onCellClick(r, c) {
     // Seleziona pezzo amico
     if (isMyPiece(clickedVal)) {
         selectedCell = { r, c };
-        drawBoard();
+        drawBoard(); // Ridisegna per mostrare selezione e pallini
         return;
     }
 
@@ -140,26 +186,17 @@ function isMyPiece(val) {
 function isValidMove(r1, c1, r2, c2) {
     const movingPiece = boardState[r1][c1];
 
-    // --- CORREZIONE RE: MOVIMENTO DI 1 SOLA CASELLA ---
+    // Re: muove di 1 casella
     if (movingPiece === 2) {
-        // Calcola distanza
         const diffR = Math.abs(r1 - r2);
         const diffC = Math.abs(c1 - c2);
-        
-        // Deve muoversi di 1 casella in totale (non in diagonale, quindi somma diff deve essere 1)
-        // Esempio: (0,1) -> somma 1 (OK). (1,1) -> somma 2 (NO, è diagonale). (2,0) -> somma 2 (NO, troppo lontano).
         if (diffR + diffC !== 1) return false;
-        
-        // La destinazione deve essere vuota (già controllato dal main loop, ma ok)
         return true;
     }
 
-    // --- MOVIMENTO ALTRI PEZZI (COME LA TORRE) ---
-    
-    // Deve essere in linea retta
+    // Altri pezzi: Torre
     if (r1 !== r2 && c1 !== c2) return false;
 
-    // Controllo ostacoli
     const dr = Math.sign(r2 - r1);
     const dc = Math.sign(c2 - c1);
     let nr = r1 + dr;
@@ -167,16 +204,13 @@ function isValidMove(r1, c1, r2, c2) {
 
     while (nr !== r2 || nc !== c2) {
         if (boardState[nr][nc] !== 0) return false; 
-        
-        // Il trono vuoto blocca i soldati? Nella tua variante solitamente SI.
-        // Se vuoi che i soldati possano attraversare il trono vuoto, rimuovi le righe sotto.
+        // Trono vuoto blocca i soldati
         if (nr === 4 && nc === 4) return false; 
-        
         nr += dr;
         nc += dc;
     }
 
-    // Trono e Angoli proibiti ai soldati semplici
+    // Caselle proibite ai soldati
     const isRestricted = (r2 === 4 && c2 === 4) || ((r2===0||r2===8) && (c2===0||c2===8));
     if (isRestricted) return false;
 
@@ -218,40 +252,29 @@ function checkCaptures(r, c) {
         const isEnemy = iAmWhite ? (neighbor === 3) : (neighbor === 1 || neighbor === 2);
 
         if (isEnemy) {
-            // Se è il Re, controllo speciale
+            // Caso Re
             if (neighbor === 2) {
                 checkKingCapture(adjR, adjC);
                 return;
             }
-
-            // Soldato normale
+            // Caso Soldato
             let anvil = false;
             if (far !== 0) {
-                // Incudine amica
                 const farIsFriend = iAmWhite ? (far === 1 || far === 2) : (far === 3);
                 if (farIsFriend) anvil = true;
             } else if (isHostileStructure(farR, farC)) {
-                // Incudine struttura (Angolo o Trono)
                 anvil = true;
             }
 
             if (anvil) {
                 boardState[adjR][adjC] = 0;
-                console.log("Cattura!");
             }
         }
     });
 }
 
 function checkKingCapture(kR, kC) {
-    // Re sul Trono: serve circondarlo su 4 lati
-    // Re fuori dal trono: Nella variante "Re lento", di solito basta circondarlo su 2 lati come un soldato, 
-    // oppure 4 lati. Per semplicità usiamo la regola standard Tablut: 
-    // Se è sul trono -> 4 lati. Se è fuori -> 2 lati (catturabile come soldato).
-    
-    // Poiché il controllo "catturabile come soldato" è già gestito dal loop generico se l'incudine c'è,
-    // qui gestiamo solo il caso "Sul Trono" che richiede 4 nemici.
-    
+    // Re sul trono (4,4) -> 4 lati
     if (kR === 4 && kC === 4) {
         const dirs = [[-1,0], [1,0], [0,-1], [0,1]];
         let enemies = 0;
@@ -260,33 +283,19 @@ function checkKingCapture(kR, kC) {
         });
         if (enemies === 4) {
             boardState[4][4] = 0;
-            endGame("I Muscoviti vincono! Re catturato al trono.");
+            showVictory("Vittoria Muscoviti!", "I Neri hanno catturato il Re sul Trono!");
         }
     } else {
-        // Se il Re è fuori dal trono, il loop generico (sopra) lo vedrà come un pezzo nemico
-        // e lo catturerà se stretto tra due pezzi.
-        // Ma dobbiamo essere sicuri che l'incudine sia valida. 
-        // Verifichiamo manualmente la "morsa" qui per sicurezza se il loop sopra fallisce.
-        // (Il loop sopra non cattura se neighbor === 2 perché entra in questo blocco if).
+        // Re fuori dal trono -> morsa a 2 (controllo esplicito)
+        // Controllo se è stretto verticalmente o orizzontalmente
+        const isBlack = (r, c) => (isInBounds(r,c) && boardState[r][c] === 3) || isHostileStructure(r,c);
         
-        // Controlliamo se è stretto ora:
-        // Chi ha mosso è in (r,c), il Re è in (kR, kC). L'incudine è oltre il Re.
-        // Calcoliamo dove deve essere l'incudine
-        const dR = kR - r; // direzione dal pezzo mosso al Re
-        const dC = kC - c; // ...
-        
-        // (Nota: r e c non sono passati a questa funzione, quindi usiamo un trucco o semplifichiamo)
-        // Semplificazione: Controlliamo le 4 direzioni attorno al Re per vedere se è stretto tra due neri
-        
-        const vert = (boardState[kR-1]?.[kC] === 3 || isHostileStructure(kR-1, kC)) && 
-                     (boardState[kR+1]?.[kC] === 3 || isHostileStructure(kR+1, kC));
-                     
-        const horiz = (boardState[kR]?.[kC-1] === 3 || isHostileStructure(kR, kC-1)) && 
-                      (boardState[kR]?.[kC+1] === 3 || isHostileStructure(kR, kC+1));
+        const vert = isBlack(kR-1, kC) && isBlack(kR+1, kC);
+        const horiz = isBlack(kR, kC-1) && isBlack(kR, kC+1);
                       
         if (vert || horiz) {
             boardState[kR][kC] = 0;
-            endGame("I Muscoviti vincono! Re catturato.");
+            showVictory("Vittoria Muscoviti!", "Il Re è caduto nell'imboscata!");
         }
     }
 }
@@ -298,7 +307,6 @@ function isHostileStructure(r, c) {
 }
 
 function checkWin() {
-    // Re sugli angoli
     let king = null;
     for(let r=0; r<9; r++) {
         for(let c=0; c<9; c++) {
@@ -306,21 +314,22 @@ function checkWin() {
         }
     }
     
-    if (!king) return true; // Re morto, gestito in endGame
+    if (!king) return true; // Già gestito in checkKingCapture
 
     if ((king.r===0||king.r===8) && (king.c===0||king.c===8)) {
-        endGame("I Bianchi vincono!");
+        showVictory("Vittoria Difensori!", "Il Re ha raggiunto la salvezza!");
         return true;
     }
     return false;
 }
 
-function endGame(msg) {
+function showVictory(title, msg) {
     isGameOver = true;
-    setTimeout(() => {
-        alert(msg);
-        restartContainer.classList.remove('hidden');
-    }, 100);
+    winnerTitle.innerText = title;
+    winnerMessage.innerText = msg;
+    
+    // Mostra il banner overlay invece dell'alert
+    gameOverModal.classList.remove('hidden');
 }
 
 function isInBounds(r, c) { return r>=0 && r<9 && c>=0 && c<9; }
