@@ -12,7 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Navigazione Storia (Tastiera)
     document.addEventListener('keydown', (e) => {
-        // Se il gioco non è visibile, ignora
         if (gameWrapper.classList.contains('hidden')) return;
 
         if (e.key === 'ArrowLeft') {
@@ -28,7 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeSettings = document.getElementById('close-settings');
     const toggleHints = document.getElementById('toggle-hints');
 
-    // Apri/Chiudi Menu Opzioni
     settingsIcon.addEventListener('click', () => {
         settingsMenu.classList.toggle('hidden');
     });
@@ -36,10 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsMenu.classList.add('hidden');
     });
 
-    // Toggle Suggerimenti
     toggleHints.addEventListener('change', (e) => {
         gameOptions.showHints = e.target.checked;
-        // Ridisegna subito se c'è un pezzo selezionato
         if (selectedCell) drawBoard();
     });
 });
@@ -53,6 +49,7 @@ const gameOverModal = document.getElementById('game-over-modal');
 const winnerTitle = document.getElementById('winner-title');
 const winnerMessage = document.getElementById('winner-message');
 const moveListBody = document.getElementById('move-list-body');
+const titleContainer = document.getElementById('title-container'); // Riferimento al titolo
 
 let selectedCell = null; 
 let currentTurn = 'black'; 
@@ -60,16 +57,15 @@ let isGameOver = false;
 let boardState = [];
 
 // STORIA E LOG
-let gameHistory = []; // Array di matrici (stati del gioco)
-let moveLog = [];     // Array di oggetti { color, text }
-let currentHistoryIndex = 0; // Puntatore temporale
+let gameHistory = []; 
+let moveLog = [];     
+let currentHistoryIndex = 0; 
 
 // Opzioni
 let gameOptions = {
     showHints: true
 };
 
-// Layout Iniziale (0=Vuoto, 1=Bianco, 2=Re, 3=Nero)
 const initialLayout = [
     [0, 0, 0, 3, 3, 3, 0, 0, 0],
     [0, 0, 0, 0, 3, 0, 0, 0, 0],
@@ -89,6 +85,9 @@ function startGame() {
     mainMenu.classList.add('hidden');
     gameWrapper.classList.remove('hidden');
     gameOverModal.classList.add('hidden');
+    
+    // SPOSTA IL TITOLO: Aggiunge la classe che lo rende piccolo e in alto a sinistra
+    titleContainer.classList.add('in-game');
 
     // Reset Variabili di Gioco
     boardState = JSON.parse(JSON.stringify(initialLayout));
@@ -101,7 +100,6 @@ function startGame() {
     moveLog = [];
     currentHistoryIndex = 0;
     
-    // Aggiorna Interfaccia
     updateMoveTable();
     updateTurnUI();
     drawBoard();
@@ -112,15 +110,12 @@ function resetGame() {
 }
 
 function goToAnalysis() {
-    // Salva i dati nel LocalStorage per passarli alla pagina di analisi
     const gameData = {
         history: gameHistory,
         moves: moveLog,
         winner: winnerTitle.innerText
     };
     localStorage.setItem('tablutAnalysisData', JSON.stringify(gameData));
-    
-    // Reindirizza
     window.location.href = 'analysis/analysis.html';
 }
 
@@ -129,11 +124,9 @@ function goToAnalysis() {
 function drawBoard() {
     boardElement.innerHTML = '';
     
-    // Determina quale stato disegnare (Passato o Presente?)
     const stateToDraw = gameHistory[currentHistoryIndex];
     const isLatest = (currentHistoryIndex === gameHistory.length - 1);
 
-    // Calcola mosse possibili SOLO se siamo nel presente
     let possibleMoves = [];
     if (isLatest && !isGameOver && gameOptions.showHints && selectedCell) {
         possibleMoves = getPossibleMoves(selectedCell.r, selectedCell.c);
@@ -146,15 +139,13 @@ function drawBoard() {
             cell.dataset.row = r;
             cell.dataset.col = c;
 
-            // --- COORDINATE ---
-            // Lettere (a-i) in basso
+            // Coordinate
             if (r === 8) {
                 const letter = document.createElement('span');
                 letter.classList.add('coord', 'coord-letter');
                 letter.innerText = String.fromCharCode(97 + c);
                 cell.appendChild(letter);
             }
-            // Numeri (1-9) a sinistra
             if (c === 0) {
                 const num = document.createElement('span');
                 num.classList.add('coord', 'coord-num');
@@ -166,7 +157,7 @@ function drawBoard() {
             if (r === 4 && c === 4) cell.classList.add('throne');
             if ((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
 
-            // Evidenzia Selezione (Solo nel presente)
+            // Evidenzia Selezione
             if (isLatest && selectedCell && selectedCell.r === r && selectedCell.c === c) {
                 cell.classList.add('selected');
             }
@@ -189,11 +180,10 @@ function drawBoard() {
                 cell.appendChild(piece);
             }
 
-            // Interazione Click (Solo nel presente)
             if (isLatest) {
                 cell.addEventListener('click', () => onCellClick(r, c));
             } else {
-                cell.style.cursor = 'default'; // Cursore default nel passato
+                cell.style.cursor = 'default';
             }
             
             boardElement.appendChild(cell);
@@ -220,7 +210,6 @@ function showNextMove() {
 }
 
 function updateNavButtons() {
-    // Disabilita i pulsanti se siamo agli estremi
     document.getElementById('btn-prev').disabled = (currentHistoryIndex === 0);
     document.getElementById('btn-next').disabled = (currentHistoryIndex === gameHistory.length - 1);
 }
@@ -228,29 +217,25 @@ function updateNavButtons() {
 // --- NOTAZIONE E TABELLA ---
 
 function getNotation(r, c) {
-    const file = String.fromCharCode(97 + c); // a, b, c...
-    const rank = 9 - r; // 9, 8, 7...
+    const file = String.fromCharCode(97 + c);
+    const rank = 9 - r;
     return `${file}${rank}`;
 }
 
 function updateMoveTable() {
     moveListBody.innerHTML = '';
     
-    // Raggruppa le mosse a due a due (Nero, Bianco)
     for (let i = 0; i < moveLog.length; i += 2) {
         const row = document.createElement('tr');
         
-        // Numero Turno
         const numCell = document.createElement('td');
         numCell.innerText = (i / 2) + 1 + ".";
         row.appendChild(numCell);
 
-        // Mossa Nero
         const blackCell = document.createElement('td');
         blackCell.innerText = moveLog[i].text;
         row.appendChild(blackCell);
 
-        // Mossa Bianco (se presente)
         const whiteCell = document.createElement('td');
         if (i + 1 < moveLog.length) {
             whiteCell.innerText = moveLog[i+1].text;
@@ -260,7 +245,6 @@ function updateMoveTable() {
         moveListBody.appendChild(row);
     }
 
-    // Scroll automatico verso il basso
     const container = document.getElementById('move-history-container');
     container.scrollTop = container.scrollHeight;
 }
@@ -293,14 +277,12 @@ function onCellClick(r, c) {
     if (isGameOver) return;
     const clickedVal = boardState[r][c];
     
-    // 1. Seleziona Pezzo Amico
     if (isMyPiece(clickedVal)) {
         selectedCell = { r, c };
         drawBoard(); 
         return;
     }
 
-    // 2. Muovi Pezzo Selezionato
     if (selectedCell && clickedVal === 0) {
         if (isValidMove(selectedCell.r, selectedCell.c, r, c)) {
             movePiece(selectedCell.r, selectedCell.c, r, c);
@@ -317,7 +299,6 @@ function isMyPiece(val) {
 function isValidMove(r1, c1, r2, c2) {
     const movingPiece = boardState[r1][c1];
 
-    // Re: muove di 1 casella
     if (movingPiece === 2) {
         const diffR = Math.abs(r1 - r2);
         const diffC = Math.abs(c1 - c2);
@@ -325,7 +306,6 @@ function isValidMove(r1, c1, r2, c2) {
         return true;
     }
 
-    // Altri pezzi: Torre (Linea retta)
     if (r1 !== r2 && c1 !== c2) return false;
 
     const dr = Math.sign(r2 - r1);
@@ -334,13 +314,12 @@ function isValidMove(r1, c1, r2, c2) {
     let nc = c1 + dc;
 
     while (nr !== r2 || nc !== c2) {
-        if (boardState[nr][nc] !== 0) return false; // Bloccato da pezzo
-        if (nr === 4 && nc === 4) return false;    // Bloccato da Trono vuoto
+        if (boardState[nr][nc] !== 0) return false; 
+        if (nr === 4 && nc === 4) return false;    
         nr += dr;
         nc += dc;
     }
 
-    // Caselle proibite ai soldati (Angoli e Trono)
     const isRestricted = (r2 === 4 && c2 === 4) || ((r2===0||r2===8) && (c2===0||c2===8));
     if (isRestricted) return false;
 
@@ -349,12 +328,9 @@ function isValidMove(r1, c1, r2, c2) {
 
 function movePiece(r1, c1, r2, c2) {
     const piece = boardState[r1][c1];
-    
-    // Esegui mossa
     boardState[r2][c2] = piece;
     boardState[r1][c1] = 0;
 
-    // --- REGISTRAZIONE MOSSA ---
     const startNotation = getNotation(r1, c1);
     const endNotation = getNotation(r2, c2);
     const moveText = `${startNotation}-${endNotation}`; 
@@ -364,26 +340,22 @@ function movePiece(r1, c1, r2, c2) {
         text: moveText
     });
     
-    // --- SALVATAGGIO STATO ---
     const newState = JSON.parse(JSON.stringify(boardState));
     gameHistory.push(newState);
     currentHistoryIndex++;
 
     updateMoveTable();
-
-    // --- CONTROLLI ---
     checkCaptures(r2, c2);
     
     if (checkWin()) return;
 
-    // Cambio Turno
     currentTurn = (currentTurn === 'white') ? 'black' : 'white';
     selectedCell = null;
     updateTurnUI();
     drawBoard();
 }
 
-// --- CATTURE ---
+// --- CATTURE E VITTORIA ---
 
 function checkCaptures(r, c) {
     const dirs = [[-1,0], [1,0], [0,-1], [0,1]];
@@ -404,12 +376,10 @@ function checkCaptures(r, c) {
         const isEnemy = iAmWhite ? (neighbor === 3) : (neighbor === 1 || neighbor === 2);
 
         if (isEnemy) {
-            // Caso Re
             if (neighbor === 2) {
                 checkKingCapture(adjR, adjC);
                 return;
             }
-            // Caso Soldato
             let anvil = false;
             if (far !== 0) {
                 const farIsFriend = iAmWhite ? (far === 1 || far === 2) : (far === 3);
@@ -425,14 +395,12 @@ function checkCaptures(r, c) {
         }
     });
 
-    // Se c'è stata una cattura, aggiorna l'ultimo stato nella storia per rifletterla
     if (captured) {
         gameHistory[currentHistoryIndex] = JSON.parse(JSON.stringify(boardState));
     }
 }
 
 function checkKingCapture(kR, kC) {
-    // Re sul trono: serve accerchiamento quadruplo
     if (kR === 4 && kC === 4) {
         const dirs = [[-1,0], [1,0], [0,-1], [0,1]];
         let enemies = 0;
@@ -444,7 +412,6 @@ function checkKingCapture(kR, kC) {
             showVictory("Vittoria Neri!", "I Neri hanno catturato il Re sul Trono!");
         }
     } else {
-        // Re fuori dal trono: morsa a 2
         const isBlack = (r, c) => (isInBounds(r,c) && boardState[r][c] === 3) || isHostileStructure(r,c);
         
         const vert = isBlack(kR-1, kC) && isBlack(kR+1, kC);
@@ -463,8 +430,6 @@ function isHostileStructure(r, c) {
     return false;
 }
 
-// --- VITTORIA ---
-
 function checkWin() {
     let king = null;
     for(let r=0; r<9; r++) {
@@ -473,10 +438,8 @@ function checkWin() {
         }
     }
     
-    // Se il Re non c'è più (gestito in checkKingCapture), la partita è finita
     if (!king) return true; 
 
-    // Re sugli angoli (Vittoria Bianchi)
     if ((king.r===0||king.r===8) && (king.c===0||king.c===8)) {
         showVictory("Vittoria Bianchi!", "Il Re ha raggiunto la salvezza!");
         return true;
