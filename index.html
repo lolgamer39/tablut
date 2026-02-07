@@ -28,12 +28,35 @@
 
     <div id="game-wrapper" class="hidden">
         
-        <div id="status-panel">
-            <span id="turn-indicator">Tocca ai: <strong id="current-player">Neri</strong></span>
-        </div>
-        
-        <div id="game-container">
-            <div id="board" class="board"></div>
+        <div id="game-layout">
+            <div id="board-area">
+                <div id="status-panel">
+                    <span id="turn-indicator">Tocca ai: <strong id="current-player">Neri</strong></span>
+                </div>
+                <div id="board" class="board"></div>
+            </div>
+
+            <div id="sidebar">
+                <h3>Mosse</h3>
+                <div id="move-history-container">
+                    <table id="move-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Neri</th>
+                                <th>Bianchi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="move-list-body">
+                            </tbody>
+                    </table>
+                </div>
+
+                <div id="history-controls">
+                    <button id="btn-prev" class="nav-btn" title="Mossa Precedente">◀</button>
+                    <button id="btn-next" class="nav-btn" title="Mossa Successiva">▶</button>
+                </div>
+            </div>
         </div>
 
     </div>
@@ -42,7 +65,10 @@
         <div class="modal-content">
             <h2 id="winner-title">Vittoria!</h2>
             <p id="winner-message">...</p>
-            <button id="play-again-btn">Gioca di nuovo</button>
+            <div class="modal-buttons">
+                <button id="play-again-btn">Gioca di nuovo</button>
+                <button id="analyze-btn" class="secondary-btn">Analizza partita</button>
+            </div>
         </div>
     </div>
 
