@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (e.key === 'ArrowRight') navigateHistory(1);
     });
 
-    // Impostazioni
     const settingsIcon = document.getElementById('settings-icon');
     const settingsMenu = document.getElementById('settings-menu');
     const closeSettings = document.getElementById('close-settings');
@@ -36,14 +35,13 @@ const gameOverModal = document.getElementById('game-over-modal');
 const winnerTitle = document.getElementById('winner-title');
 const winnerMessage = document.getElementById('winner-message');
 const moveListBody = document.getElementById('move-list-body');
-// Nota: titleContainer non è strettamente necessario qui perché usiamo document.body, ma lo lasciamo per coerenza
+const titleContainer = document.getElementById('title-container');
 
 let selectedCell = null; 
 let currentTurn = 'black'; 
 let isGameOver = false;
 let boardState = [];
 
-// STORIA, LOG E ANIMAZIONE
 let gameHistory = []; 
 let moveLog = []; 
 let currentHistoryIndex = 0; 
@@ -71,7 +69,6 @@ function startGame() {
     gameWrapper.classList.remove('hidden');
     gameOverModal.classList.add('hidden');
     
-    // NUOVO: Attiva la modalità "In Gioco" sul body per spostare il logo
     document.body.classList.add('game-active');
 
     boardState = JSON.parse(JSON.stringify(initialLayout));
@@ -79,6 +76,7 @@ function startGame() {
     isGameOver = false;
     selectedCell = null;
     
+    // Inizializza la storia con lo stato iniziale
     gameHistory = [JSON.parse(JSON.stringify(boardState))];
     moveLog = [];
     currentHistoryIndex = 0;
@@ -154,9 +152,7 @@ function navigateHistory(direction) {
             } else {
                 const moveData = moveLog[currentHistoryIndex - 1]; 
                 isAnimating = true;
-                
                 const pieceVal = gameHistory[currentHistoryIndex][moveData.to.r][moveData.to.c];
-
                 animatePieceMovement(
                     moveData.to.r, moveData.to.c, 
                     moveData.from.r, moveData.from.c, 
@@ -180,9 +176,7 @@ function navigateHistory(direction) {
             } else {
                 const moveData = moveLog[currentHistoryIndex];
                 isAnimating = true;
-
                 const pieceVal = gameHistory[currentHistoryIndex][moveData.from.r][moveData.from.c];
-
                 animatePieceMovement(
                     moveData.from.r, moveData.from.c, 
                     moveData.to.r, moveData.to.c, 
@@ -200,15 +194,27 @@ function navigateHistory(direction) {
 }
 
 function updateNavButtons() {
-    document.getElementById('btn-prev').disabled = (currentHistoryIndex === 0);
-    document.getElementById('btn-next').disabled = (currentHistoryIndex === gameHistory.length - 1);
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    if(btnPrev) btnPrev.disabled = (currentHistoryIndex === 0);
+    if(btnNext) btnNext.disabled = (currentHistoryIndex === gameHistory.length - 1);
 }
 
-// --- DISEGNO SCACCHIERA ---
+// --- DISEGNO SCACCHIERA (CON FIX SICUREZZA) ---
 
 function drawBoard() {
     boardElement.innerHTML = '';
-    const stateToDraw = gameHistory[currentHistoryIndex];
+    
+    // FIX SICUREZZA: Se la storia non esiste (bug caricamento), usa lo stato base
+    let stateToDraw = initialLayout;
+    if (gameHistory && gameHistory[currentHistoryIndex]) {
+        stateToDraw = gameHistory[currentHistoryIndex];
+    } else {
+        console.error("Errore: Stato della storia non trovato, resetto...");
+        gameHistory = [JSON.parse(JSON.stringify(initialLayout))];
+        currentHistoryIndex = 0;
+    }
+
     const isLatest = (currentHistoryIndex === gameHistory.length - 1);
 
     let possibleMoves = [];
