@@ -68,7 +68,6 @@ function startGame() {
     mainMenu.classList.add('hidden');
     gameWrapper.classList.remove('hidden');
     gameOverModal.classList.add('hidden');
-    
     document.body.classList.add('game-active');
 
     boardState = JSON.parse(JSON.stringify(initialLayout));
@@ -76,7 +75,6 @@ function startGame() {
     isGameOver = false;
     selectedCell = null;
     
-    // Inizializza la storia con lo stato iniziale
     gameHistory = [JSON.parse(JSON.stringify(boardState))];
     moveLog = [];
     currentHistoryIndex = 0;
@@ -137,58 +135,43 @@ function animatePieceMovement(fromR, fromC, toR, toC, pieceVal, callback) {
 // --- NAVIGAZIONE STORIA ---
 
 function navigateHistory(direction) {
+    if (isAnimating) return; 
     const now = Date.now();
     const isFast = (now - lastNavTime < 200); 
     lastNavTime = now;
 
-    if (isAnimating) return; 
-
-    if (direction === -1) {
-        if (currentHistoryIndex > 0) {
-            if (isFast) {
+    if (direction === -1 && currentHistoryIndex > 0) {
+        if (isFast) {
+            currentHistoryIndex--;
+            drawBoard();
+            updateNavButtons();
+        } else {
+            const moveData = moveLog[currentHistoryIndex - 1]; 
+            isAnimating = true;
+            const pieceVal = gameHistory[currentHistoryIndex][moveData.to.r][moveData.to.c];
+            animatePieceMovement(moveData.to.r, moveData.to.c, moveData.from.r, moveData.from.c, pieceVal, () => {
                 currentHistoryIndex--;
                 drawBoard();
                 updateNavButtons();
-            } else {
-                const moveData = moveLog[currentHistoryIndex - 1]; 
-                isAnimating = true;
-                const pieceVal = gameHistory[currentHistoryIndex][moveData.to.r][moveData.to.c];
-                animatePieceMovement(
-                    moveData.to.r, moveData.to.c, 
-                    moveData.from.r, moveData.from.c, 
-                    pieceVal, 
-                    () => {
-                        currentHistoryIndex--;
-                        drawBoard();
-                        updateNavButtons();
-                        isAnimating = false;
-                    }
-                );
-            }
+                isAnimating = false;
+            });
         }
     } 
-    else if (direction === 1) {
-        if (currentHistoryIndex < gameHistory.length - 1) {
-            if (isFast) {
+    else if (direction === 1 && currentHistoryIndex < gameHistory.length - 1) {
+        if (isFast) {
+            currentHistoryIndex++;
+            drawBoard();
+            updateNavButtons();
+        } else {
+            const moveData = moveLog[currentHistoryIndex];
+            isAnimating = true;
+            const pieceVal = gameHistory[currentHistoryIndex][moveData.from.r][moveData.from.c];
+            animatePieceMovement(moveData.from.r, moveData.from.c, moveData.to.r, moveData.to.c, pieceVal, () => {
                 currentHistoryIndex++;
                 drawBoard();
                 updateNavButtons();
-            } else {
-                const moveData = moveLog[currentHistoryIndex];
-                isAnimating = true;
-                const pieceVal = gameHistory[currentHistoryIndex][moveData.from.r][moveData.from.c];
-                animatePieceMovement(
-                    moveData.from.r, moveData.from.c, 
-                    moveData.to.r, moveData.to.c, 
-                    pieceVal, 
-                    () => {
-                        currentHistoryIndex++;
-                        drawBoard();
-                        updateNavButtons();
-                        isAnimating = false;
-                    }
-                );
-            }
+                isAnimating = false;
+            });
         }
     }
 }
@@ -200,85 +183,94 @@ function updateNavButtons() {
     if(btnNext) btnNext.disabled = (currentHistoryIndex === gameHistory.length - 1);
 }
 
-// --- DISEGNO SCACCHIERA (CON FIX SICUREZZA) ---
+// --- DISEGNO SCACCHIERA (BLINDATO) ---
 
 function drawBoard() {
-    boardElement.innerHTML = '';
-    
-    // FIX SICUREZZA: Se la storia non esiste (bug caricamento), usa lo stato base
-    let stateToDraw = initialLayout;
-    if (gameHistory && gameHistory[currentHistoryIndex]) {
-        stateToDraw = gameHistory[currentHistoryIndex];
-    } else {
-        console.error("Errore: Stato della storia non trovato, resetto...");
-        gameHistory = [JSON.parse(JSON.stringify(initialLayout))];
-        currentHistoryIndex = 0;
-    }
-
-    const isLatest = (currentHistoryIndex === gameHistory.length - 1);
-
-    let possibleMoves = [];
-    if (isLatest && !isGameOver && gameOptions.showHints && selectedCell) {
-        possibleMoves = getPossibleMoves(selectedCell.r, selectedCell.c);
-    }
-
-    for (let r = 0; r < 9; r++) {
-        for (let c = 0; c < 9; c++) {
-            const cell = document.createElement('div');
-            cell.classList.add('cell');
-            cell.dataset.row = r;
-            cell.dataset.col = c;
-
-            // Coordinate
-            if (r === 8) {
-                const l = document.createElement('span');
-                l.classList.add('coord', 'coord-letter');
-                l.innerText = String.fromCharCode(97 + c);
-                cell.appendChild(l);
-            }
-            if (c === 0) {
-                const n = document.createElement('span');
-                n.classList.add('coord', 'coord-num');
-                n.innerText = 9 - r;
-                cell.appendChild(n);
-            }
-
-            // Colori speciali
-            if (r === 4 && c === 4) cell.classList.add('throne');
-            if ((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
-
-            // Selezione
-            if (isLatest && selectedCell && selectedCell.r === r && selectedCell.c === c) {
-                cell.classList.add('selected');
-            }
-
-            // Suggerimenti
-            if (isLatest && possibleMoves.some(m => m.r === r && m.c === c)) {
-                const dot = document.createElement('div');
-                dot.classList.add('hint-dot');
-                cell.appendChild(dot);
-            }
-
-            // Pezzi
-            const val = stateToDraw[r][c];
-            if (val !== 0) {
-                const piece = document.createElement('div');
-                piece.classList.add('piece');
-                if (val === 1) piece.classList.add('white-piece');
-                if (val === 2) { piece.classList.add('white-piece'); piece.classList.add('king'); }
-                if (val === 3) piece.classList.add('black-piece');
-                cell.appendChild(piece);
-            }
-
-            if (isLatest) {
-                cell.addEventListener('click', () => onCellClick(r, c));
-            } else {
-                cell.style.cursor = 'default';
-            }
-            
-            boardElement.appendChild(cell);
+    try {
+        boardElement.innerHTML = '';
+        
+        let stateToDraw = initialLayout;
+        if (gameHistory && gameHistory[currentHistoryIndex]) {
+            stateToDraw = gameHistory[currentHistoryIndex];
+        } else {
+            // Se la storia è rotta, resettiamo silenziosamente
+            gameHistory = [JSON.parse(JSON.stringify(initialLayout))];
+            currentHistoryIndex = 0;
+            stateToDraw = initialLayout;
         }
+
+        const isLatest = (currentHistoryIndex === gameHistory.length - 1);
+
+        let possibleMoves = [];
+        // Calcola mosse solo se siamo all'ultimo turno e abbiamo selezionato qualcosa
+        if (isLatest && !isGameOver && gameOptions.showHints && selectedCell) {
+            // Passiamo lo stato corrente per evitare discrepanze
+            possibleMoves = getPossibleMoves(selectedCell.r, selectedCell.c, stateToDraw);
+        }
+
+        for (let r = 0; r < 9; r++) {
+            for (let c = 0; c < 9; c++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.row = r;
+                cell.dataset.col = c;
+
+                // Coordinate
+                if (r === 8) {
+                    const l = document.createElement('span');
+                    l.classList.add('coord', 'coord-letter');
+                    l.innerText = String.fromCharCode(97 + c);
+                    cell.appendChild(l);
+                }
+                if (c === 0) {
+                    const n = document.createElement('span');
+                    n.classList.add('coord', 'coord-num');
+                    n.innerText = 9 - r;
+                    cell.appendChild(n);
+                }
+
+                // Caselle speciali
+                if (r === 4 && c === 4) cell.classList.add('throne');
+                if ((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
+
+                // Selezione
+                if (isLatest && selectedCell && selectedCell.r === r && selectedCell.c === c) {
+                    cell.classList.add('selected');
+                }
+
+                // Suggerimenti
+                if (isLatest && possibleMoves.some(m => m.r === r && m.c === c)) {
+                    const dot = document.createElement('div');
+                    dot.classList.add('hint-dot');
+                    cell.appendChild(dot);
+                }
+
+                // Pezzi
+                const val = stateToDraw[r][c];
+                if (val !== 0) {
+                    const piece = document.createElement('div');
+                    piece.classList.add('piece');
+                    if (val === 1) piece.classList.add('white-piece');
+                    if (val === 2) { piece.classList.add('white-piece'); piece.classList.add('king'); }
+                    if (val === 3) piece.classList.add('black-piece');
+                    cell.appendChild(piece);
+                }
+
+                if (isLatest) {
+                    cell.addEventListener('click', () => onCellClick(r, c));
+                } else {
+                    cell.style.cursor = 'default';
+                }
+                
+                boardElement.appendChild(cell);
+            }
+        }
+    } catch (e) {
+        console.error("Errore critico nel disegno:", e);
+        // Evita che lo schermo rimanga vuoto
+        boardElement.innerHTML = '<div style="color:red; padding:20px;">Errore grafico. Ricarica la pagina.</div>';
     }
+    
     updateNavButtons();
 }
 
@@ -286,19 +278,24 @@ function drawBoard() {
 
 function onCellClick(r, c) {
     if (isGameOver || isAnimating) return; 
-    const clickedVal = boardState[r][c];
     
+    // Usa lo stato corrente dalla storia per coerenza
+    const currentState = gameHistory[currentHistoryIndex];
+    const clickedVal = currentState[r][c];
+    
+    // Selezione
     if (isMyPiece(clickedVal)) {
         selectedCell = { r, c };
         drawBoard(); 
         return;
     }
 
+    // Movimento
     if (selectedCell && clickedVal === 0) {
-        if (isValidMove(selectedCell.r, selectedCell.c, r, c)) {
+        if (isValidMove(selectedCell.r, selectedCell.c, r, c, currentState)) {
             const fromR = selectedCell.r;
             const fromC = selectedCell.c;
-            const pieceVal = boardState[fromR][fromC];
+            const pieceVal = currentState[fromR][fromC];
 
             isAnimating = true;
             animatePieceMovement(fromR, fromC, r, c, pieceVal, () => {
@@ -313,27 +310,32 @@ function onCellClick(r, c) {
 }
 
 function movePiece(r1, c1, r2, c2) {
-    const piece = boardState[r1][c1];
-    boardState[r2][c2] = piece;
-    boardState[r1][c1] = 0;
-
-    const startNotation = getNotation(r1, c1);
-    const endNotation = getNotation(r2, c2);
+    // Clona lo stato attuale per crearne uno nuovo
+    const newState = JSON.parse(JSON.stringify(gameHistory[currentHistoryIndex]));
+    const piece = newState[r1][c1];
     
+    newState[r2][c2] = piece;
+    newState[r1][c1] = 0;
+
+    // Aggiorna variabili globali e storia
+    boardState = newState; // Mantieni boardState allineato per utility
+    
+    // Log mossa
+    const moveText = `${getNotation(r1, c1)}-${getNotation(r2, c2)}`;
     moveLog.push({
         color: currentTurn,
-        text: `${startNotation}-${endNotation}`,
+        text: moveText,
         from: {r: r1, c: c1}, 
         to: {r: r2, c: c2}
     });
     
-    const newState = JSON.parse(JSON.stringify(boardState));
     gameHistory.push(newState);
     currentHistoryIndex++;
 
-    checkCaptures(r2, c2);
+    checkCaptures(r2, c2, newState); // Passiamo il nuovo stato per verificare le catture lì
     
-    if (checkWin()) return;
+    // Verifica vittoria sul NUOVO stato
+    if (checkWin(newState)) return;
 
     currentTurn = (currentTurn === 'white') ? 'black' : 'white';
     updateMoveTable();
@@ -368,36 +370,64 @@ function updateMoveTable() {
 }
 
 // --- LOGICA REGOLE ---
+
 function isMyPiece(val) {
     if (currentTurn === 'white') return (val === 1 || val === 2);
     if (currentTurn === 'black') return (val === 3);
     return false;
 }
 
-function isValidMove(r1, c1, r2, c2) {
-    const movingPiece = boardState[r1][c1];
+// Ora accetta 'state' opzionale per evitare errori di versione
+function isValidMove(r1, c1, r2, c2, state) {
+    const currentState = state || boardState;
+    
+    // Controllo sicurezza bounds
+    if (r1 < 0 || r1 > 8 || c1 < 0 || c1 > 8) return false;
+    
+    const movingPiece = currentState[r1][c1];
+
     if (movingPiece === 2) {
         if (Math.abs(r1 - r2) + Math.abs(c1 - c2) !== 1) return false;
         return true;
     }
+
     if (r1 !== r2 && c1 !== c2) return false;
+
     const dr = Math.sign(r2 - r1);
     const dc = Math.sign(c2 - c1);
     let nr = r1 + dr;
     let nc = c1 + dc;
+
     while (nr !== r2 || nc !== c2) {
-        if (boardState[nr][nc] !== 0) return false; 
+        // Controllo bounds loop
+        if (nr < 0 || nr > 8 || nc < 0 || nc > 8) return false;
+        if (currentState[nr][nc] !== 0) return false; 
         if (nr === 4 && nc === 4) return false;    
         nr += dr;
         nc += dc;
     }
+
     if ((r2 === 4 && c2 === 4) || ((r2===0||r2===8) && (c2===0||c2===8))) return false;
     return true;
 }
 
-function checkCaptures(r, c) {
+// Passiamo 'state' per calcolare mosse su uno stato specifico
+function getPossibleMoves(r, c, state) {
+    let moves = [];
+    for (let i = 0; i < 9; i++) {
+        for (let j = 0; j < 9; j++) {
+            if (state[i][j] === 0 && isValidMove(r, c, i, j, state)) {
+                moves.push({r: i, c: j});
+            }
+        }
+    }
+    return moves;
+}
+
+// Modificato per agire su 'state' passato
+function checkCaptures(r, c, state) {
     const dirs = [[-1,0], [1,0], [0,-1], [0,1]];
-    const me = boardState[r][c];
+    const me = state[r][c];
     const iAmWhite = (me === 1 || me === 2);
     let captured = false;
 
@@ -408,12 +438,12 @@ function checkCaptures(r, c) {
         const farC = c + (d[1] * 2);
 
         if (!isInBounds(adjR, adjC) || !isInBounds(farR, farC)) return;
-        const neighbor = boardState[adjR][adjC];
-        const far = boardState[farR][farC];
+        const neighbor = state[adjR][adjC];
+        const far = state[farR][farC];
         const isEnemy = iAmWhite ? (neighbor === 3) : (neighbor === 1 || neighbor === 2);
 
         if (isEnemy) {
-            if (neighbor === 2) { checkKingCapture(adjR, adjC); return; }
+            if (neighbor === 2) { checkKingCapture(adjR, adjC, state); return; }
             let anvil = false;
             if (far !== 0) {
                 const farIsFriend = iAmWhite ? (far === 1 || far === 2) : (far === 3);
@@ -421,33 +451,49 @@ function checkCaptures(r, c) {
             } else if (isHostileStructure(farR, farC)) anvil = true;
 
             if (anvil) {
-                boardState[adjR][adjC] = 0;
-                captured = true;
+                state[adjR][adjC] = 0;
+                captured = true; // Segnala modifica
             }
         }
     });
-    if (captured) {
-        gameHistory[currentHistoryIndex] = JSON.parse(JSON.stringify(boardState));
-    }
 }
 
-function checkKingCapture(kR, kC) {
+function checkKingCapture(kR, kC, state) {
     if (kR === 4 && kC === 4) {
         let enemies = 0;
         [[-1,0], [1,0], [0,-1], [0,1]].forEach(d => {
-            if (boardState[4+d[0]][4+d[1]] === 3) enemies++;
+            if (state[4+d[0]][4+d[1]] === 3) enemies++;
         });
         if (enemies === 4) {
-            boardState[4][4] = 0;
+            state[4][4] = 0;
             showVictory("Vittoria Neri!", "I Neri hanno catturato il Re sul Trono!");
         }
     } else {
-        const isBlack = (r, c) => (isInBounds(r,c) && boardState[r][c] === 3) || isHostileStructure(r,c);
+        const isBlack = (r, c) => (isInBounds(r,c) && state[r][c] === 3) || isHostileStructure(r,c);
         if ((isBlack(kR-1, kC) && isBlack(kR+1, kC)) || (isBlack(kR, kC-1) && isBlack(kR, kC+1))) {
-            boardState[kR][kC] = 0;
+            state[kR][kC] = 0;
             showVictory("Vittoria Neri!", "Il Re è caduto nell'imboscata!");
         }
     }
+}
+
+function checkWin(state) {
+    // Usa lo stato passato, o fallback a quello globale se necessario (ma meglio passato)
+    const s = state || gameHistory[currentHistoryIndex];
+    let king = null;
+    for(let r=0; r<9; r++) {
+        for(let c=0; c<9; c++) {
+            if(s[r][c] === 2) king = {r,c};
+        }
+    }
+    
+    if (!king) return true; 
+
+    if ((king.r===0||king.r===8) && (king.c===0||king.c===8)) {
+        showVictory("Vittoria Bianchi!", "Il Re ha raggiunto la salvezza!");
+        return true;
+    }
+    return false;
 }
 
 function updateTurnUI() {
