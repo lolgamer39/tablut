@@ -1,54 +1,40 @@
-// --- SISTEMA DI SICUREZZA ERRORI ---
-window.onerror = function(message, source, lineno, colno, error) {
-    alert("ERRORE: " + message + "\nRiga: " + lineno);
-    return false;
-};
-
 document.addEventListener('DOMContentLoaded', () => {
-    // Gestione Eventi
-    const startBtn = document.getElementById('start-btn');
-    if(startBtn) startBtn.addEventListener('click', startGame);
-    
-    const resetBtn = document.getElementById('play-again-btn');
-    if(resetBtn) resetBtn.addEventListener('click', resetGame);
-    
-    const analyzeBtn = document.getElementById('analyze-btn');
-    if(analyzeBtn) analyzeBtn.addEventListener('click', goToAnalysis);
+    // Gestione Eventi Semplificata
+    bindEvent('start-btn', 'click', startGame);
+    bindEvent('play-again-btn', 'click', resetGame);
+    bindEvent('analyze-btn', 'click', goToAnalysis);
+    bindEvent('btn-prev', 'click', () => navigateHistory(-1));
+    bindEvent('btn-next', 'click', () => navigateHistory(1));
 
-    const btnPrev = document.getElementById('btn-prev');
-    if(btnPrev) btnPrev.addEventListener('click', () => navigateHistory(-1));
-    
-    const btnNext = document.getElementById('btn-next');
-    if(btnNext) btnNext.addEventListener('click', () => navigateHistory(1));
-
+    // Tastiera
     document.addEventListener('keydown', (e) => {
-        const gw = document.getElementById('game-wrapper');
-        if (gw && gw.classList.contains('hidden')) return;
+        if (document.getElementById('game-wrapper').classList.contains('hidden')) return;
         if (e.key === 'ArrowLeft') navigateHistory(-1);
-        else if (e.key === 'ArrowRight') navigateHistory(1);
+        if (e.key === 'ArrowRight') navigateHistory(1);
     });
 
     // Impostazioni
     const setIcon = document.getElementById('settings-icon');
     const setMenu = document.getElementById('settings-menu');
-    const closeSettings = document.getElementById('close-settings');
-    const toggleHints = document.getElementById('toggle-hints');
-    const bgSelect = document.getElementById('bg-select');
-    const boardSelect = document.getElementById('board-select');
-
-    if(setIcon) setIcon.addEventListener('click', () => setMenu.classList.toggle('hidden'));
-    if(closeSettings) closeSettings.addEventListener('click', () => setMenu.classList.add('hidden'));
-    
-    if(toggleHints) {
-        toggleHints.addEventListener('change', (e) => {
-            gameOptions.showHints = e.target.checked;
-            if (selectedCell) drawBoard();
-        });
+    if(setIcon && setMenu) {
+        setIcon.addEventListener('click', () => setMenu.classList.toggle('hidden'));
+        bindEvent('close-settings', 'click', () => setMenu.classList.add('hidden'));
     }
+    
+    const hints = document.getElementById('toggle-hints');
+    if(hints) hints.addEventListener('change', (e) => {
+        gameOptions.showHints = e.target.checked;
+        if (selectedCell) drawBoard();
+    });
 
-    if(bgSelect) bgSelect.addEventListener('change', (e) => applyTheme('bg', e.target.value));
-    if(boardSelect) boardSelect.addEventListener('change', (e) => applyTheme('board', e.target.value));
+    bindEvent('bg-select', 'change', (e) => applyTheme('bg', e.target.value));
+    bindEvent('board-select', 'change', (e) => applyTheme('board', e.target.value));
 });
+
+function bindEvent(id, event, func) {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener(event, func);
+}
 
 // --- TEMI ---
 const pageThemes = { 'classic': '#faebd7', 'pearl': '#f5f5f5', 'mint': '#e0f2f1', 'ocean': '#e3f2fd', 'rose': '#fce4ec' };
@@ -63,7 +49,7 @@ function applyTheme(type, value) {
     }
 }
 
-// --- VARIABILI GLOBALI ---
+// --- VARIABILI ---
 let selectedCell = null; 
 let currentTurn = 'black'; 
 let isGameOver = false;
@@ -71,7 +57,6 @@ let boardState = [];
 let gameHistory = []; 
 let moveLog = []; 
 let currentHistoryIndex = 0; 
-let lastNavTime = 0; 
 let isAnimating = false; 
 let gameOptions = { showHints: true };
 
@@ -87,7 +72,7 @@ const initialLayout = [
     [0, 0, 0, 3, 3, 3, 0, 0, 0]
 ];
 
-// --- LOGICA GIOCO ---
+// --- LOGICA PRINCIPALE ---
 
 function startGame() {
     document.getElementById('main-menu').classList.add('hidden');
@@ -95,6 +80,7 @@ function startGame() {
     document.getElementById('game-over-modal').classList.add('hidden');
     document.body.classList.add('game-active');
 
+    // Reset Totale
     boardState = JSON.parse(JSON.stringify(initialLayout));
     currentTurn = 'black';
     isGameOver = false;
@@ -113,93 +99,85 @@ function startGame() {
 function resetGame() { startGame(); }
 
 function goToAnalysis() {
-    const wEl = document.getElementById('winner-title');
-    const winnerText = wEl ? wEl.innerText : "";
-    const gameData = { history: gameHistory, moves: moveLog, winner: winnerText };
-    localStorage.setItem('tablutAnalysisData', JSON.stringify(gameData));
+    localStorage.setItem('tablutAnalysisData', JSON.stringify({ history: gameHistory, moves: moveLog, winner: document.getElementById('winner-title').innerText }));
     window.location.href = 'analysis/analysis.html';
 }
 
 function drawBoard() {
-    const boardElement = document.getElementById('board');
-    if (!boardElement) return;
+    const boardEl = document.getElementById('board');
+    if (!boardEl) return;
+    boardEl.innerHTML = '';
     
-    try {
-        boardElement.innerHTML = '';
-        
-        let stateToDraw = initialLayout;
-        if (gameHistory && gameHistory.length > 0 && gameHistory[currentHistoryIndex]) {
-            stateToDraw = gameHistory[currentHistoryIndex];
-        } else {
-            console.warn("Storia corrotta, reset...");
-            gameHistory = [JSON.parse(JSON.stringify(initialLayout))];
-            currentHistoryIndex = 0;
-            stateToDraw = initialLayout;
-        }
-
-        const isLatest = (currentHistoryIndex === gameHistory.length - 1);
-        let possibleMoves = [];
-        
-        if (isLatest && !isGameOver && gameOptions.showHints && selectedCell) {
-            possibleMoves = getPossibleMoves(selectedCell.r, selectedCell.c, stateToDraw);
-        }
-
-        for (let r = 0; r < 9; r++) {
-            for (let c = 0; c < 9; c++) {
-                const cell = document.createElement('div');
-                cell.className = 'cell';
-                cell.dataset.row = r;
-                cell.dataset.col = c;
-
-                if (r === 8) cell.innerHTML += `<span class="coord coord-letter">${String.fromCharCode(97 + c)}</span>`;
-                if (c === 0) cell.innerHTML += `<span class="coord coord-num">${9 - r}</span>`;
-
-                if (r === 4 && c === 4) cell.classList.add('throne');
-                if ((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
-
-                if (isLatest && selectedCell && selectedCell.r === r && selectedCell.c === c) {
-                    cell.classList.add('selected');
-                }
-
-                if (isLatest && possibleMoves.some(m => m.r === r && m.c === c)) {
-                    const dot = document.createElement('div');
-                    dot.className = 'hint-dot';
-                    cell.appendChild(dot);
-                }
-
-                const val = stateToDraw[r][c];
-                if (val !== 0) {
-                    const piece = document.createElement('div');
-                    piece.className = 'piece';
-                    if (val === 1) piece.classList.add('white-piece');
-                    if (val === 2) { piece.classList.add('white-piece'); piece.classList.add('king'); }
-                    if (val === 3) piece.classList.add('black-piece');
-                    cell.appendChild(piece);
-                }
-
-                if (isLatest) {
-                    cell.addEventListener('click', () => onCellClick(r, c));
-                } else {
-                    cell.style.cursor = 'default';
-                }
-                boardElement.appendChild(cell);
-            }
-        }
-    } catch (e) {
-        alert("Errore Grafico: " + e.message);
-        boardElement.innerHTML = "<p style='color:white'>Errore. Ricarica.</p>";
+    // Recupero Sicuro Stato
+    let state = initialLayout;
+    if (gameHistory.length > 0 && gameHistory[currentHistoryIndex]) {
+        state = gameHistory[currentHistoryIndex];
+    } else {
+        gameHistory = [JSON.parse(JSON.stringify(initialLayout))];
+        currentHistoryIndex = 0;
     }
-    updateNavButtons();
+
+    const isLatest = (currentHistoryIndex === gameHistory.length - 1);
+    let moves = [];
+    
+    if (isLatest && !isGameOver && gameOptions.showHints && selectedCell) {
+        moves = getPossibleMoves(selectedCell.r, selectedCell.c, state);
+    }
+
+    for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 9; c++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.dataset.row = r;
+            cell.dataset.col = c;
+
+            // Coordinate
+            if (r === 8) cell.innerHTML += `<span class="coord coord-letter">${String.fromCharCode(97 + c)}</span>`;
+            if (c === 0) cell.innerHTML += `<span class="coord coord-num">${9 - r}</span>`;
+
+            // Classi speciali
+            if (r === 4 && c === 4) cell.classList.add('throne');
+            if ((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
+
+            // Selezione
+            if (isLatest && selectedCell && selectedCell.r === r && selectedCell.c === c) {
+                cell.classList.add('selected');
+            }
+
+            // Hint
+            if (isLatest && moves.some(m => m.r === r && m.c === c)) {
+                const dot = document.createElement('div');
+                dot.className = 'hint-dot';
+                cell.appendChild(dot);
+            }
+
+            // Pezzo
+            const val = state[r][c];
+            if (val !== 0) {
+                const piece = document.createElement('div');
+                piece.className = 'piece';
+                if (val === 1) piece.classList.add('white-piece');
+                if (val === 2) { piece.classList.add('white-piece'); piece.classList.add('king'); }
+                if (val === 3) piece.classList.add('black-piece');
+                cell.appendChild(piece);
+            }
+
+            if (isLatest) {
+                cell.addEventListener('click', () => handleInput(r, c));
+            } else {
+                cell.style.cursor = 'default';
+            }
+            
+            boardEl.appendChild(cell);
+        }
+    }
+    updateNavUI();
 }
 
-// --- INTERAZIONE ---
-
-function onCellClick(r, c) {
+function handleInput(r, c) {
     if (isGameOver || isAnimating) return; 
     
     const currentState = gameHistory[currentHistoryIndex];
-    if(!currentState) return;
-
     const clickedVal = currentState[r][c];
     
     // Selezione
@@ -212,87 +190,85 @@ function onCellClick(r, c) {
     // Movimento
     if (selectedCell && clickedVal === 0) {
         if (isValidMove(selectedCell.r, selectedCell.c, r, c, currentState)) {
-            const fromR = selectedCell.r;
-            const fromC = selectedCell.c;
-            const pieceVal = currentState[fromR][fromC];
-
-            // 1. PULIZIA VISIVA IMMEDIATA (Fix richiesto)
-            const allDots = document.querySelectorAll('.hint-dot');
-            allDots.forEach(d => d.remove());
-            const allSels = document.querySelectorAll('.selected');
-            allSels.forEach(s => s.classList.remove('selected'));
-            
-            selectedCell = null; // Deseleziona logicamente
-
-            // 2. Animazione
-            isAnimating = true;
-            animatePieceMovement(fromR, fromC, r, c, pieceVal, () => {
-                isAnimating = false;
-                executeMoveLogic(fromR, fromC, r, c);
-            });
+            performMoveWithAnimation(selectedCell.r, selectedCell.c, r, c, currentState);
         }
     }
 }
 
-function animatePieceMovement(fromR, fromC, toR, toC, pieceVal, callback) {
-    try {
-        const startCell = document.querySelector(`.cell[data-row='${fromR}'][data-col='${fromC}']`);
-        const endCell = document.querySelector(`.cell[data-row='${toR}'][data-col='${toC}']`);
+// --- FUNZIONE PER RIMUOVERE GLI HINT IMMEDIATAMENTE ---
+function clearHints() {
+    const dots = document.querySelectorAll('.hint-dot');
+    dots.forEach(d => d.remove());
+    
+    const selected = document.querySelectorAll('.selected');
+    selected.forEach(s => s.classList.remove('selected'));
+}
 
-        if (!startCell || !endCell) { callback(); return; }
+function performMoveWithAnimation(r1, c1, r2, c2, currentState) {
+    // 1. PULIZIA IMMEDIATA DEI PALLINI E DELLA SELEZIONE
+    clearHints();
+    selectedCell = null; // Reset logico immediato
 
-        const originalPiece = startCell.querySelector('.piece');
-        if (originalPiece) originalPiece.classList.add('invisible');
+    const pieceVal = currentState[r1][c1];
+    isAnimating = true;
 
-        const startRect = startCell.getBoundingClientRect();
-        const endRect = endCell.getBoundingClientRect();
+    // 2. Prepara elementi DOM
+    const startCell = document.querySelector(`.cell[data-row='${r1}'][data-col='${c1}']`);
+    const endCell = document.querySelector(`.cell[data-row='${r2}'][data-col='${c2}']`);
+    
+    let ghost = null;
 
-        const ghost = document.createElement('div');
+    if (startCell && endCell) {
+        const pieceEl = startCell.querySelector('.piece');
+        if (pieceEl) pieceEl.classList.add('invisible');
+
+        const rect1 = startCell.getBoundingClientRect();
+        const rect2 = endCell.getBoundingClientRect();
+
+        ghost = document.createElement('div');
         ghost.className = 'piece animating-piece';
         if (pieceVal === 1) ghost.classList.add('white-piece');
-        else if (pieceVal === 2) { ghost.classList.add('white-piece', 'king'); }
-        else if (pieceVal === 3) ghost.classList.add('black-piece');
+        if (pieceVal === 2) { ghost.classList.add('white-piece', 'king'); }
+        if (pieceVal === 3) ghost.classList.add('black-piece');
 
-        ghost.style.width = startRect.width * 0.8 + 'px';
-        ghost.style.height = startRect.height * 0.8 + 'px';
-        ghost.style.left = (startRect.left + startRect.width * 0.1) + 'px';
-        ghost.style.top = (startRect.top + startRect.height * 0.1) + 'px';
-
+        ghost.style.width = rect1.width * 0.8 + 'px';
+        ghost.style.height = rect1.height * 0.8 + 'px';
+        ghost.style.left = (rect1.left + rect1.width * 0.1) + 'px';
+        ghost.style.top = (rect1.top + rect1.height * 0.1) + 'px';
+        
         document.body.appendChild(ghost);
 
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                ghost.style.left = (endRect.left + endRect.width * 0.1) + 'px';
-                ghost.style.top = (endRect.top + endRect.height * 0.1) + 'px';
-            });
-        });
+        // Forza reflow
+        void ghost.offsetWidth;
 
-        const finish = () => {
-            if(ghost.parentNode) ghost.remove();
-            callback();
-        };
-        
-        ghost.addEventListener('transitionend', finish, { once: true });
-        setTimeout(finish, 300); // Safety Timer
-    } catch(e) {
-        console.error(e);
-        callback(); // Se l'animazione fallisce, procedi comunque
+        ghost.style.left = (rect2.left + rect2.width * 0.1) + 'px';
+        ghost.style.top = (rect2.top + rect2.height * 0.1) + 'px';
     }
+
+    // 3. Timer infallibile: Dopo 250ms esegue la logica
+    setTimeout(() => {
+        if (ghost) ghost.remove();
+        executeMoveLogic(r1, c1, r2, c2);
+        isAnimating = false;
+        // Non serve ridisegnare selectedCell perché è già null
+    }, 250);
 }
 
 function executeMoveLogic(r1, c1, r2, c2) {
+    // Nuova copia stato
     const newState = JSON.parse(JSON.stringify(gameHistory[currentHistoryIndex]));
     const piece = newState[r1][c1];
     newState[r2][c2] = piece;
     newState[r1][c1] = 0;
     
     boardState = newState;
-    const moveText = `${getNotation(r1, c1)}-${getNotation(r2, c2)}`;
-    moveLog.push({ color: currentTurn, text: moveText, from: {r: r1, c: c1}, to: {r: r2, c: c2} });
+    
+    const txt = `${getNotation(r1, c1)}-${getNotation(r2, c2)}`;
+    moveLog.push({ color: currentTurn, text: txt, from: {r: r1, c: c1}, to: {r: r2, c: c2} });
     
     gameHistory.push(newState);
     currentHistoryIndex++;
-    
+
     checkCaptures(r2, c2, newState);
     
     if (!checkWin(newState)) {
@@ -304,73 +280,40 @@ function executeMoveLogic(r1, c1, r2, c2) {
     drawBoard();
 }
 
-// --- UTILS ---
-function navigateHistory(direction) {
+function navigateHistory(dir) {
     if (isAnimating) return;
-    const now = Date.now();
-    const isFast = (now - lastNavTime < 250);
-    lastNavTime = now;
+    if (dir === -1 && currentHistoryIndex > 0) currentHistoryIndex--;
+    else if (dir === 1 && currentHistoryIndex < gameHistory.length - 1) currentHistoryIndex++;
+    else return;
 
-    if (direction === -1 && currentHistoryIndex > 0) {
-        if (isFast) {
-            currentHistoryIndex--;
-            drawBoard();
-            updateNavButtons();
-        } else {
-            const lastMove = moveLog[currentHistoryIndex - 1]; 
-            const pieceVal = gameHistory[currentHistoryIndex][lastMove.to.r][lastMove.to.c];
-            isAnimating = true;
-            animatePieceMovement(lastMove.to.r, lastMove.to.c, lastMove.from.r, lastMove.from.c, pieceVal, () => {
-                isAnimating = false;
-                currentHistoryIndex--;
-                drawBoard();
-                updateNavButtons();
-            });
-        }
-    } else if (direction === 1 && currentHistoryIndex < gameHistory.length - 1) {
-        if (isFast) {
-            currentHistoryIndex++;
-            drawBoard();
-            updateNavButtons();
-        } else {
-            const nextMove = moveLog[currentHistoryIndex];
-            const pieceVal = gameHistory[currentHistoryIndex][nextMove.from.r][nextMove.from.c];
-            isAnimating = true;
-            animatePieceMovement(nextMove.from.r, nextMove.from.c, nextMove.to.r, nextMove.to.c, pieceVal, () => {
-                isAnimating = false;
-                currentHistoryIndex++;
-                drawBoard();
-                updateNavButtons();
-            });
-        }
-    }
+    drawBoard();
 }
 
-function updateNavButtons() {
-    const btnPrev = document.getElementById('btn-prev');
-    const btnNext = document.getElementById('btn-next');
-    if(btnPrev) btnPrev.disabled = (currentHistoryIndex === 0);
-    if(btnNext) btnNext.disabled = (currentHistoryIndex === gameHistory.length - 1);
+// --- UTILITY E REGOLE (Standard) ---
+function updateNavUI() {
+    const p = document.getElementById('btn-prev');
+    const n = document.getElementById('btn-next');
+    if(p) p.disabled = (currentHistoryIndex === 0);
+    if(n) n.disabled = (currentHistoryIndex === gameHistory.length - 1);
 }
 
 function getNotation(r, c) { return `${String.fromCharCode(97 + c)}${9 - r}`; }
+
 function updateMoveTable() {
     const list = document.getElementById('move-list-body');
     if(!list) return;
     list.innerHTML = '';
     for (let i = 0; i < moveLog.length; i += 2) {
         const row = document.createElement('tr');
-        const num = document.createElement('td'); num.innerText = (i / 2) + 1 + ".";
-        row.appendChild(num);
-        const black = document.createElement('td'); black.innerText = moveLog[i].text;
-        row.appendChild(black);
-        const white = document.createElement('td');
-        if (i + 1 < moveLog.length) white.innerText = moveLog[i+1].text;
-        row.appendChild(white);
+        const n = document.createElement('td'); n.innerText = (i/2)+1 + ".";
+        const b = document.createElement('td'); b.innerText = moveLog[i].text;
+        const w = document.createElement('td'); 
+        if(moveLog[i+1]) w.innerText = moveLog[i+1].text;
+        row.append(n, b, w);
         list.appendChild(row);
     }
-    const container = document.getElementById('move-history-container');
-    if(container) container.scrollTop = container.scrollHeight;
+    const c = document.getElementById('move-history-container');
+    if(c) c.scrollTop = c.scrollHeight;
 }
 
 function isMyPiece(val) {
@@ -380,97 +323,96 @@ function isMyPiece(val) {
 }
 
 function isValidMove(r1, c1, r2, c2, state) {
-    const s = state || boardState;
-    if (r1 < 0 || r1 > 8 || c1 < 0 || c1 > 8) return false;
-    const movingPiece = s[r1][c1];
-    if (movingPiece === 2) { if (Math.abs(r1 - r2) + Math.abs(c1 - c2) !== 1) return false; return true; }
-    if (r1 !== r2 && c1 !== c2) return false;
-    const dr = Math.sign(r2 - r1);
-    const dc = Math.sign(c2 - c1);
-    let nr = r1 + dr; let nc = c1 + dc;
+    if (r1===r2 && c1===c2) return false;
+    const p = state[r1][c1];
+    if (p === 2) { if (Math.abs(r1-r2) + Math.abs(c1-c2) !== 1) return false; return true; }
+    
+    const dr = Math.sign(r2-r1), dc = Math.sign(c2-c1);
+    if (dr !== 0 && dc !== 0) return false; // Solo ortogonale
+
+    let nr = r1 + dr, nc = c1 + dc;
     while (nr !== r2 || nc !== c2) {
-        if (nr < 0 || nr > 8 || nc < 0 || nc > 8) return false;
-        if (s[nr][nc] !== 0) return false; 
-        if (nr === 4 && nc === 4) return false;    
+        if (state[nr][nc] !== 0) return false;
+        if (nr === 4 && nc === 4) return false;
         nr += dr; nc += dc;
     }
-    if ((r2 === 4 && c2 === 4) || ((r2===0||r2===8) && (c2===0||c2===8))) return false;
+    // Accesso vietato a campi speciali (tranne Re)
+    if ((r2===0||r2===8) && (c2===0||c2===8)) return false;
+    if (r2===4 && c2===4) return false;
+    
     return true;
 }
 
 function getPossibleMoves(r, c, state) {
-    let moves = [];
-    const safeState = state || boardState;
-    for (let i = 0; i < 9; i++) {
-        for (let j = 0; j < 9; j++) {
-            if (safeState[i][j] === 0 && isValidMove(r, c, i, j, safeState)) {
-                moves.push({r: i, c: j});
-            }
-        }
-    }
-    return moves;
+    let m = [];
+    for (let i=0; i<9; i++) for (let j=0; j<9; j++) 
+        if (state[i][j]===0 && isValidMove(r, c, i, j, state)) m.push({r:i, c:j});
+    return m;
 }
 
 function checkCaptures(r, c, state) {
-    const dirs = [[-1,0], [1,0], [0,-1], [0,1]];
     const me = state[r][c];
-    const iAmWhite = (me === 1 || me === 2);
+    const isWhite = (me === 1 || me === 2);
     let captured = false;
-    dirs.forEach(d => {
-        const adjR = r + d[0]; const adjC = c + d[1];
-        const farR = r + (d[0] * 2); const farC = c + (d[1] * 2);
-        if (!isInBounds(adjR, adjC) || !isInBounds(farR, farC)) return;
-        const neighbor = state[adjR][adjC];
-        const far = state[farR][farC];
-        const isEnemy = iAmWhite ? (neighbor === 3) : (neighbor === 1 || neighbor === 2);
-        if (isEnemy) {
-            if (neighbor === 2) { checkKingCapture(adjR, adjC, state); return; }
-            let anvil = false;
-            if (far !== 0) {
-                const farIsFriend = iAmWhite ? (far === 1 || far === 2) : (far === 3);
-                if (farIsFriend) anvil = true;
-            } else if (isHostileStructure(farR, farC)) anvil = true;
-            if (anvil) { state[adjR][adjC] = 0; captured = true; }
+    [[-1,0], [1,0], [0,-1], [0,1]].forEach(d => {
+        const nr = r + d[0], nc = c + d[1];
+        const fr = r + d[0]*2, fc = c + d[1]*2;
+        if (isInBounds(nr, nc) && isInBounds(fr, fc)) {
+            const nVal = state[nr][nc], fVal = state[fr][fc];
+            const isEnemy = isWhite ? (nVal === 3) : (nVal === 1 || nVal === 2);
+            if (isEnemy) {
+                if (nVal === 2) { checkKingCapture(nr, nc, state); return; }
+                let anvil = false;
+                if (fVal !== 0) {
+                    const fFriend = isWhite ? (fVal===1 || fVal===2) : (fVal===3);
+                    if (fFriend) anvil = true;
+                } else if (isHostile(fr, fc)) anvil = true;
+                
+                if (anvil) { state[nr][nc] = 0; captured = true; }
+            }
         }
     });
-    if (captured) gameHistory[currentHistoryIndex] = JSON.parse(JSON.stringify(state));
+    if(captured) gameHistory[currentHistoryIndex] = JSON.parse(JSON.stringify(state));
 }
 
-function checkKingCapture(kR, kC, state) {
-    if (kR === 4 && kC === 4) {
-        let enemies = 0;
-        [[-1,0], [1,0], [0,-1], [0,1]].forEach(d => { if (state[4+d[0]][4+d[1]] === 3) enemies++; });
-        if (enemies === 4) { state[4][4] = 0; showVictory("Vittoria Neri!", "I Neri hanno catturato il Re sul Trono!"); }
-    } else {
-        const isBlack = (r, c) => (isInBounds(r,c) && state[r][c] === 3) || isHostileStructure(r,c);
-        if ((isBlack(kR-1, kC) && isBlack(kR+1, kC)) || (isBlack(kR, kC-1) && isBlack(kR, kC+1))) {
-            state[kR][kC] = 0; showVictory("Vittoria Neri!", "Il Re è caduto nell'imboscata!");
+function checkKingCapture(r, c, state) {
+    let count = 0;
+    [[-1,0],[1,0],[0,-1],[0,1]].forEach(d => {
+        const nr=r+d[0], nc=c+d[1];
+        if(isInBounds(nr,nc)) {
+            if(state[nr][nc]===3 || isHostile(nr,nc)) count++;
         }
+    });
+    const onThrone = (r===4 && c===4);
+    if (onThrone && count===4) win('Neri');
+    else if (!onThrone) {
+        // Controllo a morsa
+        const v = (chk(r-1,c,state) && chk(r+1,c,state));
+        const h = (chk(r,c-1,state) && chk(r,c+1,state));
+        if(v || h) win('Neri');
     }
 }
+function chk(r, c, s) { return isInBounds(r,c) && (s[r][c]===3 || isHostile(r,c)); }
 
 function checkWin(state) {
-    const s = state || gameHistory[currentHistoryIndex];
-    let king = null;
-    for(let r=0; r<9; r++) { for(let c=0; c<9; c++) { if(s[r][c] === 2) king = {r,c}; } }
-    if (!king) return true; 
-    if ((king.r===0||king.r===8) && (king.c===0||king.c===8)) { showVictory("Vittoria Bianchi!", "Il Re ha raggiunto la salvezza!"); return true; }
+    let k = null;
+    for(let i=0;i<9;i++) for(let j=0;j<9;j++) if(state[i][j]===2) k={r:i,c:j};
+    if(!k) { win('Neri'); return true; }
+    if((k.r===0||k.r===8) && (k.c===0||k.c===8)) { win('Bianchi'); return true; }
     return false;
+}
+
+function win(who) {
+    isGameOver = true;
+    document.getElementById('winner-title').innerText = `Vittoria ${who}!`;
+    document.getElementById('game-over-modal').classList.remove('hidden');
 }
 
 function updateTurnUI() {
     const el = document.getElementById('current-player');
-    if(!el) return;
     if (currentTurn === 'black') { el.innerText = "Neri"; el.style.color = "black"; } 
     else { el.innerText = "Bianchi"; el.style.color = "#d4a017"; }
 }
 
-function showVictory(title, msg) {
-    isGameOver = true; 
-    document.getElementById('winner-title').innerText = title; 
-    document.getElementById('winner-message').innerText = msg; 
-    document.getElementById('game-over-modal').classList.remove('hidden');
-}
-
-function isHostileStructure(r, c) { return ((r===0||r===8) && (c===0||c===8)) || (r===4 && c===4); }
+function isHostile(r, c) { return ((r===0||r===8) && (c===0||c===8)) || (r===4 && c===4); }
 function isInBounds(r, c) { return r>=0 && r<9 && c>=0 && c<9; }
