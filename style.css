@@ -292,6 +292,17 @@ button:hover { background-color: #a0522d; transform: scale(1.05); }
 #winner-title { font-size: 3em; margin: 0; color: #8b4513; }
 #winner-message { font-size: 1.5em; margin: 20px 0; }
 
+/* --- AGGIUNGI QUESTO ALLA FINE DEL FILE --- */
+
+/* Pedina che scivola (Animazione) */
+.animating-piece {
+    position: fixed; /* Si muove rispetto allo schermo */
+    z-index: 9999;   /* Sopra a tutto */
+    transition: all 0.2s ease-in-out; /* La magia dello scivolamento */
+    pointer-events: none; /* Non puoi cliccarla mentre si muove */
+    box-shadow: 0 10px 20px rgba(0,0,0,0.5); /* Ombra più marcata mentre vola */
+}
+
 @keyframes popIn {
     from { transform: scale(0.5); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
