@@ -18,15 +18,15 @@ body {
     overflow-x: hidden;
 }
 
-/* --- TITOLO IMMAGINE --- */
+/* --- TITOLO IMMAGINE (MODIFICATO PER ESSERE PIÙ PICCOLO) --- */
 #title-container {
     margin-top: 10px;
     margin-bottom: 20px;
 }
 
 #main-title {
-    max-width: 600px; /* Larghezza massima per desktop */
-    width: 90%;       /* Su mobile occupa il 90% dello schermo */
+    max-width: 350px; /* RIDOTTO DA 600px A 350px */
+    width: 80%;       /* Ridotto leggermente anche su mobile */
     height: auto;     /* Mantiene le proporzioni */
     display: inline-block;
 }
@@ -161,7 +161,7 @@ button:hover { background-color: #a0522d; transform: scale(1.05); }
 
 /* --- MENU INIZIALE --- */
 #main-menu { 
-    margin-top: 20px; /* Ridotto un po' dato che c'è l'immagine */
+    margin-top: 10px; 
     padding: 40px;
     background-color: rgba(255,255,255,0.6);
     border-radius: 15px;
