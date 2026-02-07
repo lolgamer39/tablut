@@ -17,14 +17,51 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsMenu = document.getElementById('settings-menu');
     const closeSettings = document.getElementById('close-settings');
     const toggleHints = document.getElementById('toggle-hints');
+    const bgSelect = document.getElementById('bg-select');
+    const boardSelect = document.getElementById('board-select');
 
     settingsIcon.addEventListener('click', () => settingsMenu.classList.toggle('hidden'));
     closeSettings.addEventListener('click', () => settingsMenu.classList.add('hidden'));
+    
     toggleHints.addEventListener('change', (e) => {
         gameOptions.showHints = e.target.checked;
         if (selectedCell) drawBoard();
     });
+
+    // --- GESTIONE TEMI ---
+    bgSelect.addEventListener('change', (e) => applyTheme('bg', e.target.value));
+    boardSelect.addEventListener('change', (e) => applyTheme('board', e.target.value));
 });
+
+// --- DEFINIZIONE COLORI TEMI ---
+const pageThemes = {
+    'classic': '#faebd7', // Beige caldo (Default)
+    'pearl': '#f5f5f5',   // Grigio chiarissimo
+    'mint': '#e0f2f1',    // Verde acqua chiarissimo
+    'ocean': '#e3f2fd',   // Blu chiarissimo
+    'rose': '#fce4ec'     // Rosa antico chiarissimo
+};
+
+const boardThemes = {
+    'wood': { cell: '#f0e2d0', border: '#5a3a22' },   // Classico
+    'stone': { cell: '#cfd8dc', border: '#455a64' },  // Grigio Pietra
+    'sand': { cell: '#fff3e0', border: '#e65100' },   // Sabbia e Arancio scuro
+    'ivory': { cell: '#ffffff', border: '#333333' },  // B/N Minimal
+    'forest': { cell: '#dcedc8', border: '#33691e' }  // Verde
+};
+
+function applyTheme(type, value) {
+    const root = document.documentElement;
+    
+    if (type === 'bg') {
+        const color = pageThemes[value];
+        root.style.setProperty('--page-bg', color);
+    } else if (type === 'board') {
+        const theme = boardThemes[value];
+        root.style.setProperty('--board-cell', theme.cell);
+        root.style.setProperty('--board-border', theme.border);
+    }
+}
 
 // --- VARIABILI GLOBALI ---
 const boardElement = document.getElementById('board');
@@ -35,6 +72,7 @@ const gameOverModal = document.getElementById('game-over-modal');
 const winnerTitle = document.getElementById('winner-title');
 const winnerMessage = document.getElementById('winner-message');
 const moveListBody = document.getElementById('move-list-body');
+const titleContainer = document.getElementById('title-container');
 
 let selectedCell = null; 
 let currentTurn = 'black'; 
@@ -102,17 +140,11 @@ function animatePieceMovement(fromR, fromC, toR, toC, pieceVal, callback) {
     const startCell = document.querySelector(`.cell[data-row='${fromR}'][data-col='${fromC}']`);
     const endCell = document.querySelector(`.cell[data-row='${toR}'][data-col='${toC}']`);
 
-    // Se le celle non esistono (es. cambio tab veloce), salta l'animazione
-    if (!startCell || !endCell) { 
-        callback(); 
-        return; 
-    }
+    if (!startCell || !endCell) { callback(); return; }
 
-    // 1. Nascondi il pezzo originale
     const originalPiece = startCell.querySelector('.piece');
     if (originalPiece) originalPiece.classList.add('invisible');
 
-    // 2. Crea il fantasma
     const startRect = startCell.getBoundingClientRect();
     const endRect = endCell.getBoundingClientRect();
 
@@ -123,17 +155,13 @@ function animatePieceMovement(fromR, fromC, toR, toC, pieceVal, callback) {
     else if (pieceVal === 2) { ghost.classList.add('white-piece', 'king'); }
     else if (pieceVal === 3) ghost.classList.add('black-piece');
 
-    // Posizione iniziale esatta
     ghost.style.width = startRect.width * 0.75 + 'px'; 
     ghost.style.height = startRect.height * 0.75 + 'px';
-    // Calcoliamo la posizione fixed
     ghost.style.left = (startRect.left + (startRect.width * 0.125)) + 'px'; 
     ghost.style.top = (startRect.top + (startRect.height * 0.125)) + 'px';
 
     document.body.appendChild(ghost);
 
-    // 3. Avvia animazione
-    // Usiamo double requestAnimationFrame per assicurarci che il browser abbia renderizzato il frame iniziale
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             ghost.style.left = (endRect.left + (endRect.width * 0.125)) + 'px';
@@ -141,64 +169,51 @@ function animatePieceMovement(fromR, fromC, toR, toC, pieceVal, callback) {
         });
     });
 
-    // 4. Pulizia alla fine
     ghost.addEventListener('transitionend', () => {
         ghost.remove();
-        callback(); // Aggiorna lo stato logico solo ora
+        callback();
     }, { once: true });
 }
 
 // --- NAVIGAZIONE STORIA ---
 
 function navigateHistory(direction) {
-    if (isAnimating) return; // Blocca se stiamo già animando
-    
+    if (isAnimating) return; 
     const now = Date.now();
-    const isFast = (now - lastNavTime < 250); // Se clicchi veloce (<250ms), salta l'animazione
+    const isFast = (now - lastNavTime < 250); 
     lastNavTime = now;
 
-    // INDIETRO
     if (direction === -1 && currentHistoryIndex > 0) {
         if (isFast) {
-            // Modalità veloce: Teletrasporto
             currentHistoryIndex--;
             drawBoard();
             updateNavButtons();
         } else {
-            // Modalità normale: Slide all'indietro
-            const lastMove = moveLog[currentHistoryIndex - 1]; // Prendi l'ultima mossa fatta
-            
-            // Per andare indietro, muoviamo da TO a FROM
-            // Recuperiamo quale pezzo c'è ORA nella casella di destinazione (che era l'arrivo)
+            const lastMove = moveLog[currentHistoryIndex - 1]; 
             const currentState = gameHistory[currentHistoryIndex];
             const pieceVal = currentState[lastMove.to.r][lastMove.to.c];
 
             isAnimating = true;
             animatePieceMovement(
-                lastMove.to.r, lastMove.to.c,   // Da dove parte (attuale)
-                lastMove.from.r, lastMove.from.c, // Dove va (precedente)
+                lastMove.to.r, lastMove.to.c, 
+                lastMove.from.r, lastMove.from.c, 
                 pieceVal,
                 () => {
+                    isAnimating = false;
                     currentHistoryIndex--;
                     drawBoard();
                     updateNavButtons();
-                    isAnimating = false;
                 }
             );
         }
     } 
-    // AVANTI
     else if (direction === 1 && currentHistoryIndex < gameHistory.length - 1) {
         if (isFast) {
-            // Modalità veloce
             currentHistoryIndex++;
             drawBoard();
             updateNavButtons();
         } else {
-            // Modalità normale: Slide in avanti
-            const nextMove = moveLog[currentHistoryIndex]; // La mossa successiva
-            
-            // Prendiamo il pezzo dallo stato attuale
+            const nextMove = moveLog[currentHistoryIndex];
             const currentState = gameHistory[currentHistoryIndex];
             const pieceVal = currentState[nextMove.from.r][nextMove.from.c];
 
@@ -208,10 +223,10 @@ function navigateHistory(direction) {
                 nextMove.to.r, nextMove.to.c,
                 pieceVal,
                 () => {
+                    isAnimating = false;
                     currentHistoryIndex++;
                     drawBoard();
                     updateNavButtons();
-                    isAnimating = false;
                 }
             );
         }
@@ -237,6 +252,7 @@ function drawBoard() {
         } else {
             gameHistory = [JSON.parse(JSON.stringify(initialLayout))];
             currentHistoryIndex = 0;
+            stateToDraw = initialLayout;
         }
 
         const isLatest = (currentHistoryIndex === gameHistory.length - 1);
@@ -253,7 +269,6 @@ function drawBoard() {
                 cell.dataset.row = r;
                 cell.dataset.col = c;
 
-                // Coordinate
                 if (r === 8) {
                     const l = document.createElement('span');
                     l.classList.add('coord', 'coord-letter');
@@ -267,23 +282,19 @@ function drawBoard() {
                     cell.appendChild(n);
                 }
 
-                // Caselle speciali
                 if (r === 4 && c === 4) cell.classList.add('throne');
                 if ((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
 
-                // Selezione
                 if (isLatest && selectedCell && selectedCell.r === r && selectedCell.c === c) {
                     cell.classList.add('selected');
                 }
 
-                // Suggerimenti
                 if (isLatest && possibleMoves.some(m => m.r === r && m.c === c)) {
                     const dot = document.createElement('div');
                     dot.classList.add('hint-dot');
                     cell.appendChild(dot);
                 }
 
-                // Pezzi
                 const val = stateToDraw[r][c];
                 if (val !== 0) {
                     const piece = document.createElement('div');
@@ -304,9 +315,8 @@ function drawBoard() {
             }
         }
     } catch (e) {
-        console.error("Disegno fallito:", e);
+        console.error("Errore nel disegno:", e);
     }
-    
     updateNavButtons();
 }
 
@@ -318,14 +328,12 @@ function onCellClick(r, c) {
     const currentState = gameHistory[currentHistoryIndex];
     const clickedVal = currentState[r][c];
     
-    // Selezione
     if (isMyPiece(clickedVal)) {
         selectedCell = { r, c };
         drawBoard(); 
         return;
     }
 
-    // Movimento
     if (selectedCell && clickedVal === 0) {
         if (isValidMove(selectedCell.r, selectedCell.c, r, c, currentState)) {
             const fromR = selectedCell.r;
@@ -333,33 +341,25 @@ function onCellClick(r, c) {
             const pieceVal = currentState[fromR][fromC];
 
             isAnimating = true;
-            
-            // 1. Anima (Visuale)
             animatePieceMovement(fromR, fromC, r, c, pieceVal, () => {
-                // 2. Aggiorna Logica (Solo dopo la fine dell'animazione)
                 isAnimating = false;
                 executeMoveLogic(fromR, fromC, r, c);
             });
             
             selectedCell = null;
-            // NON ridisegniamo qui (drawBoard), altrimenti cancelliamo l'animazione
-            // Ridisegniamo solo dentro la callback di animatePieceMovement (tramite executeMoveLogic)
         }
     }
 }
 
 function executeMoveLogic(r1, c1, r2, c2) {
-    // Questa funzione viene chiamata DOPO che l'animazione è finita
     const newState = JSON.parse(JSON.stringify(gameHistory[currentHistoryIndex]));
     const piece = newState[r1][c1];
     
     newState[r2][c2] = piece;
     newState[r1][c1] = 0;
 
-    // Aggiorna variabili
     boardState = newState;
     
-    // Log
     const moveText = `${getNotation(r1, c1)}-${getNotation(r2, c2)}`;
     moveLog.push({
         color: currentTurn,
@@ -378,7 +378,7 @@ function executeMoveLogic(r1, c1, r2, c2) {
     currentTurn = (currentTurn === 'white') ? 'black' : 'white';
     updateMoveTable();
     updateTurnUI();
-    drawBoard(); // Ora ridisegniamo tutto pulito
+    drawBoard();
 }
 
 // --- UTILITY E REGOLE ---
@@ -418,21 +418,17 @@ function isMyPiece(val) {
 function isValidMove(r1, c1, r2, c2, state) {
     const s = state || boardState;
     if (r1 < 0 || r1 > 8 || c1 < 0 || c1 > 8) return false;
-    
     const movingPiece = s[r1][c1];
 
     if (movingPiece === 2) {
         if (Math.abs(r1 - r2) + Math.abs(c1 - c2) !== 1) return false;
         return true;
     }
-
     if (r1 !== r2 && c1 !== c2) return false;
-
     const dr = Math.sign(r2 - r1);
     const dc = Math.sign(c2 - c1);
     let nr = r1 + dr;
     let nc = c1 + dc;
-
     while (nr !== r2 || nc !== c2) {
         if (nr < 0 || nr > 8 || nc < 0 || nc > 8) return false;
         if (s[nr][nc] !== 0) return false; 
@@ -440,21 +436,8 @@ function isValidMove(r1, c1, r2, c2, state) {
         nr += dr;
         nc += dc;
     }
-
     if ((r2 === 4 && c2 === 4) || ((r2===0||r2===8) && (c2===0||c2===8))) return false;
     return true;
-}
-
-function getPossibleMoves(r, c, state) {
-    let moves = [];
-    for (let i = 0; i < 9; i++) {
-        for (let j = 0; j < 9; j++) {
-            if (state[i][j] === 0 && isValidMove(r, c, i, j, state)) {
-                moves.push({r: i, c: j});
-            }
-        }
-    }
-    return moves;
 }
 
 function checkCaptures(r, c, state) {
@@ -489,7 +472,6 @@ function checkCaptures(r, c, state) {
         }
     });
     if (captured) {
-        // Aggiorniamo la storia con le catture
         gameHistory[currentHistoryIndex] = JSON.parse(JSON.stringify(state));
     }
 }
@@ -511,24 +493,6 @@ function checkKingCapture(kR, kC, state) {
             showVictory("Vittoria Neri!", "Il Re è caduto nell'imboscata!");
         }
     }
-}
-
-function checkWin(state) {
-    const s = state || gameHistory[currentHistoryIndex];
-    let king = null;
-    for(let r=0; r<9; r++) {
-        for(let c=0; c<9; c++) {
-            if(s[r][c] === 2) king = {r,c};
-        }
-    }
-    
-    if (!king) return true; 
-
-    if ((king.r===0||king.r===8) && (king.c===0||king.c===8)) {
-        showVictory("Vittoria Bianchi!", "Il Re ha raggiunto la salvezza!");
-        return true;
-    }
-    return false;
 }
 
 function updateTurnUI() {
