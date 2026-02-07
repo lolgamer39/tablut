@@ -21,7 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (e.key === 'ArrowRight') navigateHistory(1);
     });
 
-    // Impostazioni
     const settingsIcon = document.getElementById('settings-icon');
     const settingsMenu = document.getElementById('settings-menu');
     const closeSettings = document.getElementById('close-settings');
@@ -89,7 +88,7 @@ const initialLayout = [
     [0, 0, 0, 3, 3, 3, 0, 0, 0]
 ];
 
-// --- LOGICA DI GIOCO ---
+// --- LOGICA ---
 
 function startGame() {
     mainMenu.classList.add('hidden');
@@ -97,6 +96,7 @@ function startGame() {
     gameOverModal.classList.add('hidden');
     document.body.classList.add('game-active');
 
+    // Inizializzazione sicura
     boardState = JSON.parse(JSON.stringify(initialLayout));
     currentTurn = 'black';
     isGameOver = false;
@@ -122,91 +122,84 @@ function goToAnalysis() {
 
 function drawBoard() {
     if (!boardElement) return;
+    boardElement.innerHTML = ''; // Pulisce lo schermo
     
-    try {
-        boardElement.innerHTML = '';
-        
-        // Recupera lo stato corretto dalla storia
-        let stateToDraw = initialLayout;
-        if (gameHistory && gameHistory[currentHistoryIndex]) {
-            stateToDraw = gameHistory[currentHistoryIndex];
-        } else {
-            // Fallback di emergenza
-            console.warn("Stato della storia non trovato, resetto...");
-            gameHistory = [JSON.parse(JSON.stringify(initialLayout))];
-            currentHistoryIndex = 0;
-            stateToDraw = initialLayout;
-        }
+    // Recupera lo stato corretto. Se fallisce, usa initialLayout.
+    let stateToDraw = initialLayout;
+    if (gameHistory && gameHistory.length > 0 && gameHistory[currentHistoryIndex]) {
+        stateToDraw = gameHistory[currentHistoryIndex];
+    } else {
+        // Ripristino silenzioso se qualcosa si rompe
+        gameHistory = [JSON.parse(JSON.stringify(initialLayout))];
+        currentHistoryIndex = 0;
+        stateToDraw = initialLayout;
+    }
 
-        const isLatest = (currentHistoryIndex === gameHistory.length - 1);
-        let possibleMoves = [];
-        
-        // Calcola mosse possibili solo se siamo all'ultimo stato e c'è una selezione
-        if (isLatest && !isGameOver && gameOptions.showHints && selectedCell) {
-            possibleMoves = getPossibleMoves(selectedCell.r, selectedCell.c, stateToDraw);
-        }
+    const isLatest = (currentHistoryIndex === gameHistory.length - 1);
+    let possibleMoves = [];
+    
+    // Calcola mosse
+    if (isLatest && !isGameOver && gameOptions.showHints && selectedCell) {
+        possibleMoves = getPossibleMoves(selectedCell.r, selectedCell.c, stateToDraw);
+    }
 
-        for (let r = 0; r < 9; r++) {
-            for (let c = 0; c < 9; c++) {
-                const cell = document.createElement('div');
-                cell.classList.add('cell');
-                cell.dataset.row = r;
-                cell.dataset.col = c;
+    for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 9; c++) {
+            const cell = document.createElement('div');
+            cell.classList.add('cell');
+            cell.dataset.row = r;
+            cell.dataset.col = c;
 
-                // Coordinate
-                if (r === 8) {
-                    const l = document.createElement('span');
-                    l.classList.add('coord', 'coord-letter');
-                    l.innerText = String.fromCharCode(97 + c);
-                    cell.appendChild(l);
-                }
-                if (c === 0) {
-                    const n = document.createElement('span');
-                    n.classList.add('coord', 'coord-num');
-                    n.innerText = 9 - r;
-                    cell.appendChild(n);
-                }
-
-                // Colori speciali
-                if (r === 4 && c === 4) cell.classList.add('throne');
-                if ((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
-
-                // Selezione
-                if (isLatest && selectedCell && selectedCell.r === r && selectedCell.c === c) {
-                    cell.classList.add('selected');
-                }
-
-                // Pallini Suggerimento
-                if (isLatest && possibleMoves.some(m => m.r === r && m.c === c)) {
-                    const dot = document.createElement('div');
-                    dot.classList.add('hint-dot');
-                    cell.appendChild(dot);
-                }
-
-                // Pezzi
-                const val = stateToDraw[r][c];
-                if (val !== 0) {
-                    const piece = document.createElement('div');
-                    piece.classList.add('piece');
-                    if (val === 1) piece.classList.add('white-piece');
-                    if (val === 2) { piece.classList.add('white-piece'); piece.classList.add('king'); }
-                    if (val === 3) piece.classList.add('black-piece');
-                    cell.appendChild(piece);
-                }
-
-                // Click solo se siamo nel presente
-                if (isLatest) {
-                    cell.addEventListener('click', () => onCellClick(r, c));
-                } else {
-                    cell.style.cursor = 'default';
-                }
-                
-                boardElement.appendChild(cell);
+            // Coordinate
+            if (r === 8) {
+                const l = document.createElement('span');
+                l.classList.add('coord', 'coord-letter');
+                l.innerText = String.fromCharCode(97 + c);
+                cell.appendChild(l);
             }
+            if (c === 0) {
+                const n = document.createElement('span');
+                n.classList.add('coord', 'coord-num');
+                n.innerText = 9 - r;
+                cell.appendChild(n);
+            }
+
+            // Caselle speciali
+            if (r === 4 && c === 4) cell.classList.add('throne');
+            if ((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
+
+            // Selezione
+            if (isLatest && selectedCell && selectedCell.r === r && selectedCell.c === c) {
+                cell.classList.add('selected');
+            }
+
+            // Pallini
+            if (isLatest && possibleMoves.some(m => m.r === r && m.c === c)) {
+                const dot = document.createElement('div');
+                dot.classList.add('hint-dot');
+                cell.appendChild(dot);
+            }
+
+            // Pezzi
+            const val = stateToDraw[r][c];
+            if (val !== 0) {
+                const piece = document.createElement('div');
+                piece.classList.add('piece');
+                if (val === 1) piece.classList.add('white-piece');
+                if (val === 2) { piece.classList.add('white-piece'); piece.classList.add('king'); }
+                if (val === 3) piece.classList.add('black-piece');
+                cell.appendChild(piece);
+            }
+
+            // Click
+            if (isLatest) {
+                cell.addEventListener('click', () => onCellClick(r, c));
+            } else {
+                cell.style.cursor = 'default';
+            }
+            
+            boardElement.appendChild(cell);
         }
-    } catch (e) {
-        console.error("Errore critico nel disegno:", e);
-        boardElement.innerHTML = '<div style="padding:20px; color:white;">Errore grafico. Ricarica la pagina.</div>';
     }
     updateNavButtons();
 }
@@ -214,18 +207,18 @@ function drawBoard() {
 function onCellClick(r, c) {
     if (isGameOver || isAnimating) return; 
     
-    // Usa sempre lo stato dalla storia per coerenza
+    // Usa sempre lo stato dalla storia
     const currentState = gameHistory[currentHistoryIndex];
+    if(!currentState) return; // Sicurezza extra
+
     const clickedVal = currentState[r][c];
     
-    // 1. Se clicco su un mio pezzo -> Seleziono
     if (isMyPiece(clickedVal)) {
         selectedCell = { r, c };
         drawBoard(); 
         return;
     }
 
-    // 2. Se ho selezionato e clicco su vuoto -> Provo a muovere
     if (selectedCell && clickedVal === 0) {
         if (isValidMove(selectedCell.r, selectedCell.c, r, c, currentState)) {
             const fromR = selectedCell.r;
@@ -237,9 +230,7 @@ function onCellClick(r, c) {
                 isAnimating = false;
                 executeMoveLogic(fromR, fromC, r, c);
             });
-            
             selectedCell = null;
-            // NON ridisegnare qui, aspetta l'animazione
         }
     }
 }
@@ -291,7 +282,7 @@ function executeMoveLogic(r1, c1, r2, c2) {
     newState[r2][c2] = piece;
     newState[r1][c1] = 0;
     
-    boardState = newState; // Allinea boardState
+    boardState = newState;
     const moveText = `${getNotation(r1, c1)}-${getNotation(r2, c2)}`;
     moveLog.push({ color: currentTurn, text: moveText, from: {r: r1, c: c1}, to: {r: r2, c: c2} });
     
@@ -307,7 +298,7 @@ function executeMoveLogic(r1, c1, r2, c2) {
     drawBoard();
 }
 
-// --- NAVIGATION ---
+// --- UTILS ---
 function navigateHistory(direction) {
     if (isAnimating) return;
     const now = Date.now();
@@ -356,7 +347,6 @@ function updateNavButtons() {
     if(btnNext) btnNext.disabled = (currentHistoryIndex === gameHistory.length - 1);
 }
 
-// --- UTILS ---
 function getNotation(r, c) { return `${String.fromCharCode(97 + c)}${9 - r}`; }
 function updateMoveTable() {
     if(!moveListBody) return;
@@ -401,6 +391,20 @@ function isValidMove(r1, c1, r2, c2, state) {
     return true;
 }
 
+function getPossibleMoves(r, c, state) {
+    let moves = [];
+    // Controllo di sicurezza: se state è indefinito, usa boardState
+    const safeState = state || boardState;
+    for (let i = 0; i < 9; i++) {
+        for (let j = 0; j < 9; j++) {
+            if (safeState[i][j] === 0 && isValidMove(r, c, i, j, safeState)) {
+                moves.push({r: i, c: j});
+            }
+        }
+    }
+    return moves;
+}
+
 function checkCaptures(r, c, state) {
     const dirs = [[-1,0], [1,0], [0,-1], [0,1]];
     const me = state[r][c];
@@ -439,15 +443,6 @@ function checkKingCapture(kR, kC, state) {
     }
 }
 
-function updateTurnUI() {
-    if (currentTurn === 'black') { currentPlayerSpan.innerText = "Neri"; currentPlayerSpan.style.color = "black"; } 
-    else { currentPlayerSpan.innerText = "Bianchi"; currentPlayerSpan.style.color = "#d4a017"; }
-}
-
-function showVictory(title, msg) {
-    isGameOver = true; winnerTitle.innerText = title; winnerMessage.innerText = msg; gameOverModal.classList.remove('hidden');
-}
-
 function checkWin(state) {
     const s = state || gameHistory[currentHistoryIndex];
     let king = null;
@@ -455,6 +450,15 @@ function checkWin(state) {
     if (!king) return true; 
     if ((king.r===0||king.r===8) && (king.c===0||king.c===8)) { showVictory("Vittoria Bianchi!", "Il Re ha raggiunto la salvezza!"); return true; }
     return false;
+}
+
+function updateTurnUI() {
+    if (currentTurn === 'black') { currentPlayerSpan.innerText = "Neri"; currentPlayerSpan.style.color = "black"; } 
+    else { currentPlayerSpan.innerText = "Bianchi"; currentPlayerSpan.style.color = "#d4a017"; }
+}
+
+function showVictory(title, msg) {
+    isGameOver = true; winnerTitle.innerText = title; winnerMessage.innerText = msg; gameOverModal.classList.remove('hidden');
 }
 
 function isHostileStructure(r, c) { return ((r===0||r===8) && (c===0||c===8)) || (r===4 && c===4); }
