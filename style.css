@@ -18,17 +18,38 @@ body {
     overflow-x: hidden;
 }
 
-/* --- TITOLO IMMAGINE (MODIFICATO PER ESSERE PIÙ PICCOLO) --- */
+/* --- TITOLO IMMAGINE DINAMICO --- */
 #title-container {
+    /* Stato Iniziale (Menu) */
     margin-top: 10px;
     margin-bottom: 20px;
+    /* Animazione fluida per lo spostamento */
+    transition: all 0.5s ease-in-out; 
+    position: relative; /* Necessario per il posizionamento */
 }
 
 #main-title {
-    max-width: 350px; /* RIDOTTO DA 600px A 350px */
-    width: 80%;       /* Ridotto leggermente anche su mobile */
-    height: auto;     /* Mantiene le proporzioni */
+    /* Stato Iniziale (Menu) */
+    max-width: 350px; 
+    width: 80%;       
+    height: auto;     
     display: inline-block;
+    transition: all 0.5s ease-in-out;
+}
+
+/* --- STATO DI GIOCO (Logo piccolo in alto a sinistra) --- */
+#title-container.in-game {
+    position: fixed; /* Lo fissa allo schermo */
+    top: 10px;
+    left: 20px;
+    margin: 0;
+    z-index: 50; /* Sopra la scacchiera ma sotto i modali */
+    text-align: left;
+    width: auto;
+}
+
+#title-container.in-game #main-title {
+    max-width: 120px; /* Molto più piccolo */
 }
 
 .hidden { display: none !important; }
