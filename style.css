@@ -3,8 +3,47 @@
     --border-color: #8b4513;
     --throne-color: #ffd700;
     --escape-color: #90ee90;
+    --highlight-color: rgba(255, 0, 0, 0.4);
 }
 
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-align: center;
+    background-color: #faebd7;
+    margin: 0;
+    padding: 20px;
+}
+
+h1 { color: #5a3a22; }
+
+/* Menu e Pulsanti */
+#menu { margin-bottom: 20px; }
+
+button {
+    padding: 15px 30px;
+    font-size: 18px;
+    background-color: #8b4513;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+button:hover { background-color: #a0522d; }
+
+/* Pannello Turno */
+#status-panel {
+    font-size: 20px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #fff;
+    display: inline-block;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Scacchiera */
 .board {
     display: grid;
     grid-template-columns: repeat(9, 60px);
@@ -13,7 +52,8 @@
     background-color: var(--border-color);
     border: 5px solid var(--border-color);
     width: fit-content;
-    margin: 20px auto;
+    margin: 0 auto;
+    user-select: none; /* Impedisce di selezionare il testo trascinando */
 }
 
 .cell {
@@ -24,6 +64,11 @@
     justify-content: center;
     align-items: center;
     cursor: pointer;
+    position: relative;
+}
+
+.cell.selected {
+    background-color: var(--highlight-color) !important;
 }
 
 /* Caselle Speciali */
@@ -35,7 +80,9 @@
     width: 45px;
     height: 45px;
     border-radius: 50%;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.4);
+    z-index: 2;
+    pointer-events: none; /* Lascia che il click passi alla cella */
 }
 
 .white-piece { background-color: #fff; border: 2px solid #333; }
@@ -43,5 +90,5 @@
 .king { 
     background-color: #fff; 
     border: 4px solid gold; 
-    border-radius: 10px; /* Il Re lo facciamo quadrato arrotondato */
+    box-sizing: border-box;
 }
