@@ -3,43 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tablut - Home</title>
+    <title>Tablut - La Sfida</title>
     <link rel="stylesheet" href="style.css">
-    <style>
-        /* Stili specifici per la intro, sovrascrivendo o estendendo style.css */
-        body {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        }
-        #main-menu {
-            display: block; /* Sempre visibile qui */
-            background: white;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            border: 2px solid #8b4513;
-        }
-        #title-container { position: relative; top: auto; left: auto; margin-bottom: 20px; }
-        #main-title { max-width: 300px; width: 80%; }
-    </style>
 </head>
 <body>
+
+    <div id="settings-icon">⚙️</div>
+
+    <div id="settings-menu" class="hidden">
+        <h3>Opzioni di Gioco</h3>
+        <label class="switch-container">
+            <input type="checkbox" id="toggle-hints" checked>
+            <span class="label-text">Mostra mosse possibili</span>
+        </label>
+
+        <hr>
+
+        <h3>Tema</h3>
+        <div class="theme-control">
+            <label for="bg-select">Sfondo Sito</label>
+            <select id="bg-select">
+                <option value="classic">Classico (Beige)</option>
+                <option value="pearl">Perla (Grigio Chiaro)</option>
+                <option value="mint">Menta (Verde Tenue)</option>
+                <option value="ocean">Oceano (Blu Pallido)</option>
+                <option value="rose">Antico (Rosato)</option>
+            </select>
+        </div>
+        <div class="theme-control">
+            <label for="board-select">Scacchiera</label>
+            <select id="board-select">
+                <option value="wood">Legno (Originale)</option>
+                <option value="stone">Pietra (Grigio/Blu)</option>
+                <option value="sand">Sabbia (Giallo Tenue)</option>
+                <option value="ivory">Avorio (Minimal)</option>
+                <option value="forest">Foresta (Verde)</option>
+            </select>
+        </div>
+
+        <button id="close-settings">Chiudi</button>
+    </div>
 
     <div id="title-container">
         <img src="title.png" alt="Tablut - La Sfida" id="main-title">
     </div>
 
     <div id="main-menu">
-        <h1>Benvenuto a Tablut</h1>
-        <p>Il gioco vichingo di strategia.</p>
-        <p>Difendi il Re o catturalo!</p>
-        <br>
-        <a href="game/game.html">
-            <button id="start-btn">Entra nell'Arena</button>
-        </a>
+        <p>Benvenuto! Premi il pulsante per iniziare.</p>
+        <button id="start-btn">Inizia Partita</button>
     </div>
 
+    <div id="game-wrapper" class="hidden">
+        <div id="game-layout">
+            <div id="board-area">
+                <div id="status-panel">
+                    <span id="turn-indicator">Tocca ai: <strong id="current-player">Neri</strong></span>
+                </div>
+                <div id="board" class="board"></div>
+            </div>
+
+            <div id="sidebar">
+                <h3>Mosse</h3>
+                <div id="move-history-container">
+                    <table id="move-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Neri</th>
+                                <th>Bianchi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="move-list-body"></tbody>
+                    </table>
+                </div>
+                <div id="history-controls">
+                    <button id="btn-prev" class="nav-btn" title="Indietro">◀</button>
+                    <button id="btn-next" class="nav-btn" title="Avanti">▶</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-over-modal" class="hidden">
+        <div class="modal-content">
+            <h2 id="winner-title">Vittoria!</h2>
+            <p id="winner-message">...</p>
+            <div class="modal-buttons">
+                <button id="play-again-btn">Gioca di nuovo</button>
+                <button id="analyze-btn" class="secondary-btn">Analizza partita</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
 </body>
 </html>
