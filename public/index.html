@@ -1,39 +1,50 @@
-<div id="main-menu">
-    <h1>Tablut Online</h1>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Tablut - Menu</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <img src="title.png" alt="Tablut" style="max-width: 300px; margin-bottom: 20px;">
     
-    <div class="tabs">
-        <button onclick="showTab('local')">Partita Locale</button>
-        <button onclick="showTab('online')">Partita Online</button>
+    <div id="main-menu">
+        <h1>Benvenuto a Tablut</h1>
+        <div>
+            <button onclick="showSection('local')">Partita Locale</button>
+            <button onclick="showSection('online')">Partita Online</button>
+        </div>
+
+        <div id="local-section" class="hidden">
+            <p>Gioca sullo stesso dispositivo.</p>
+            <a href="game/game.html?mode=local"><button>Avvia Locale</button></a>
+        </div>
+
+        <div id="online-section" class="hidden">
+            <p>Sfida un amico online.</p>
+            <input type="text" id="username" placeholder="Il tuo nome" maxlength="12">
+            <select id="time-control">
+                <option value="no-time">Senza Tempo</option>
+                <option value="10">10 Minuti</option>
+                <option value="30">30 Minuti</option>
+            </select>
+            <br>
+            <button id="find-btn">Cerca Partita</button>
+        </div>
     </div>
 
-    <div id="local-tab">
-        <p>Gioca sullo stesso dispositivo.</p>
-        <a href="game/game.html?mode=local"><button>Gioca Locale</button></a>
-    </div>
-
-    <div id="online-tab" class="hidden">
-        <input type="text" id="username" placeholder="Inserisci il tuo nome" maxlength="15">
-        <select id="time-control">
-            <option value="no-time">Senza Tempo</option>
-            <option value="10">10 Minuti</option>
-            <option value="30">30 Minuti</option>
-        </select>
-        <button id="find-match-btn">Cerca Avversario</button>
-    </div>
-</div>
-
-<script>
-    function showTab(tab) {
-        document.getElementById('local-tab').classList.add('hidden');
-        document.getElementById('online-tab').classList.add('hidden');
-        document.getElementById(tab + '-tab').classList.remove('hidden');
-    }
-
-    document.getElementById('find-match-btn').addEventListener('click', () => {
-        const name = document.getElementById('username').value;
-        const time = document.getElementById('time-control').value;
-        if(!name) return alert("Inserisci un nome!");
-        // Reindirizza passando i parametri
-        window.location.href = `game/game.html?mode=online&name=${encodeURIComponent(name)}&time=${time}`;
-    });
-</script>
+    <script>
+        function showSection(id) {
+            document.getElementById('local-section').classList.add('hidden');
+            document.getElementById('online-section').classList.add('hidden');
+            document.getElementById(id + '-section').classList.remove('hidden');
+        }
+        document.getElementById('find-btn').addEventListener('click', () => {
+            const name = document.getElementById('username').value;
+            const time = document.getElementById('time-control').value;
+            if(!name) return alert("Inserisci un nome!");
+            window.location.href = `game/game.html?mode=online&name=${encodeURIComponent(name)}&time=${time}`;
+        });
+    </script>
+</body>
+</html>
