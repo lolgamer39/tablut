@@ -1,0 +1,18 @@
+/* Timer e Barre */
+.player-info {
+    display: flex; justify-content: space-between; align-items: center;
+    width: 100%; max-width: 500px; margin: 0 auto 10px;
+    background: rgba(255,255,255,0.8); padding: 5px 15px; border-radius: 8px;
+}
+.timer { font-family: monospace; font-size: 24px; font-weight: bold; }
+.signal-bars { display: flex; gap: 2px; align-items: flex-end; height: 20px; }
+.bar { width: 4px; background: #ccc; }
+.bar:nth-child(1) { height: 25%; }
+.bar:nth-child(2) { height: 50%; }
+.bar:nth-child(3) { height: 75%; }
+.bar:nth-child(4) { height: 100%; }
+
+.signal-4 .bar { background: #4caf50; } /* Verde */
+.signal-3 .bar:nth-child(-n+3) { background: #8bc34a; }
+.signal-2 .bar:nth-child(-n+2) { background: #ffeb3b; }
+.signal-1 .bar:nth-child(1) { background: #f44336; } /* Rosso */
