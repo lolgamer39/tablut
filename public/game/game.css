@@ -5,7 +5,14 @@ body {
     text-align: center;
     user-select: none;
     margin: 0;
-    padding: 20px;
+    /* Rimuoviamo il padding fisso per sfruttare tutto lo schermo su mobile */
+    padding: 10px;
+    
+    /* Centratura verticale dell'intero gioco */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
 }
 
 .hidden { display: none !important; }
@@ -16,55 +23,58 @@ body {
     justify-content: space-between;
     align-items: center;
     background: white;
-    padding: 15px 20px; 
-    margin: 15px auto;
+    padding: 10px 15px; 
+    margin: 5px auto; /* Meno margine per stare in schermi piccoli */
+    
+    /* Larghezza fissa su PC, fluida su Mobile */
     width: 100%;
-    max-width: 480px;
+    max-width: 480px; 
+    box-sizing: border-box; /* Importante per i bordi */
+    
     border-radius: 12px;
     border: 3px solid #8b4513;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
 }
 
 .player-info {
     display: flex;
     align-items: center;
-    gap: 15px; 
+    gap: 10px; 
+    overflow: hidden; /* Evita che nomi lunghi rompano il layout */
 }
 
 .player-name {
     font-weight: bold;
-    font-size: 20px;
+    font-size: 18px; /* Un po' più piccolo per sicurezza */
     color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px; /* Limite lunghezza nome su mobile */
 }
 
-/* --- INDICATORE COLORE (MIGLIORATO) --- */
+/* Indicatore Colore */
 .color-indicator {
-    width: 30px;  
-    height: 30px; 
+    width: 24px;  
+    height: 24px;
+    flex-shrink: 0; /* Impedisce che si schiacci */
     border-radius: 50%;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-    display: inline-block;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
 }
 
-.is-white { 
-    background-color: #ffffff; 
-    border: 3px solid #333; 
-}
-.is-black { 
-    background-color: #000000; 
-    border: 3px solid #ccc; 
-}
+.is-white { background-color: #ffffff; border: 2px solid #333; }
+.is-black { background-color: #000000; border: 2px solid #ccc; }
 
 /* Timer */
 .timer {
     font-family: 'Courier New', monospace;
-    font-size: 24px;
+    font-size: 20px;
     font-weight: bold;
     background-color: #eee;
-    padding: 5px 10px;
+    padding: 4px 8px;
     border-radius: 6px;
     border: 1px solid #ccc;
-    min-width: 80px;
+    min-width: 70px;
     text-align: center;
 }
 
@@ -72,66 +82,57 @@ body {
 .signal-bars {
     display: flex;
     align-items: flex-end;
-    gap: 3px;
-    height: 24px;
-    width: 32px;
+    gap: 2px;
+    height: 20px;
+    width: 28px;
+    flex-shrink: 0;
 }
 
-.bar {
-    width: 5px;
-    background-color: #e0e0e0;
-    border-radius: 2px;
-}
-
+.bar { width: 5px; background-color: #e0e0e0; border-radius: 2px; }
 .bar:nth-child(1) { height: 25%; }
 .bar:nth-child(2) { height: 50%; }
 .bar:nth-child(3) { height: 75%; }
 .bar:nth-child(4) { height: 100%; }
 
-/* Colori Tacche */
-.signal-1 .bar:nth-child(1) { background-color: #ff3333; } /* Rosso */
-
-.signal-2 .bar:nth-child(1), 
-.signal-2 .bar:nth-child(2) { background-color: #ffcc00; } /* Giallo */
-
-.signal-3 .bar:nth-child(1), 
-.signal-3 .bar:nth-child(2), 
-.signal-3 .bar:nth-child(3) { background-color: #99cc33; } /* Verde Chiaro */
-
-.signal-4 .bar { background-color: #33cc33; } /* Verde Scuro */
+.signal-1 .bar:nth-child(1) { background-color: #ff3333; }
+.signal-2 .bar:nth-child(1), .signal-2 .bar:nth-child(2) { background-color: #ffcc00; }
+.signal-3 .bar:nth-child(1), .signal-3 .bar:nth-child(2), .signal-3 .bar:nth-child(3) { background-color: #99cc33; }
+.signal-4 .bar { background-color: #33cc33; }
 
 
-/* --- SCACCHIERA (CON LINEE VISIBILI) --- */
+/* --- SCACCHIERA (VERSIONE DESKTOP STANDARD) --- */
 #game-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    width: 100%; /* Occupa tutto lo spazio disponibile */
+}
+
+#status-panel {
+    margin: 10px 0;
+    font-size: 22px;
+    color: #5a3a22;
 }
 
 #board {
     display: grid;
+    /* Desktop: celle fisse da 50px */
     grid-template-columns: repeat(9, 50px);
     grid-template-rows: repeat(9, 50px);
-    width: fit-content;
-    margin: 10px auto;
     
-    /* Bordo esterno spesso */
+    margin: 5px auto;
     border: 8px solid #5a3a22;
-    
-    /* Questo sfondo marrone apparirà tra le celle creando le linee */
     background-color: #5a3a22; 
-    
-    /* Spazio tra le celle (crea le linee interne) */
     gap: 2px; 
-    
-    box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
 }
 
 .cell {
+    /* Desktop: dimensioni fisse */
     width: 50px;
     height: 50px;
-    background-color: #f0e2d0; /* Legno chiaro */
+    background-color: #f0e2d0;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -139,95 +140,113 @@ body {
     cursor: pointer;
 }
 
-/* Caselle Speciali */
 .throne { background-color: #ffd700 !important; }
 .escape { background-color: #90ee90 !important; }
-
-/* Effetti Interattivi */
 .cell:hover { filter: brightness(0.95); }
 .selected { background-color: rgba(255, 215, 0, 0.7) !important; }
 
-/* Pallino suggerimento */
 .hint {
-    width: 16px;
-    height: 16px;
+    width: 30%; height: 30%; /* Relativo alla cella */
     background-color: rgba(0, 100, 0, 0.3);
     border-radius: 50%;
     pointer-events: none;
 }
 
-/* --- PEZZI --- */
+/* --- PEZZI (Relativi alla cella) --- */
 .piece {
-    width: 40px;
-    height: 40px;
+    width: 80%; /* Occupa l'80% della cella, non pixel fissi */
+    height: 80%;
     border-radius: 50%;
     pointer-events: none;
     z-index: 10;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.4);
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
     position: relative;
 }
 
-.black-piece {
-    background: #111;
-    border: 2px solid #555;
-}
-
-.white-piece {
-    background: #fff;
-    border: 2px solid #888;
-}
-
+.black-piece { background: #111; border: 2px solid #555; }
+.white-piece { background: #fff; border: 2px solid #888; }
 .king {
-    /* Assicurati che king.png sia nella cartella superiore */
     background: #fff url('../king.png') no-repeat center center;
     background-size: 70%;
     border: 3px solid #d4af37;
-    box-shadow: 0 0 8px gold;
+    box-shadow: 0 0 5px gold;
 }
 
-/* --- MODAL FINE PARTITA --- */
+/* --- MODAL --- */
 #game-over-modal {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background-color: rgba(0,0,0,0.85);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
+    display: flex; justify-content: center; align-items: center; z-index: 9999;
 }
-
 .modal-content {
-    background: white;
-    padding: 30px;
-    border-radius: 15px;
-    text-align: center;
-    border: 5px solid #8b4513;
-    min-width: 300px;
+    background: white; padding: 30px; border-radius: 15px;
+    text-align: center; border: 5px solid #8b4513; width: 85%; max-width: 350px;
 }
-
-#winner-title {
-    color: #8b4513;
-    font-size: 32px;
-    margin-bottom: 10px;
-}
-
 button {
-    background-color: #8b4513;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    font-size: 16px;
-    border-radius: 5px;
-    cursor: pointer;
-    margin-top: 15px;
+    background-color: #8b4513; color: white; border: none;
+    padding: 12px 24px; font-size: 18px; border-radius: 8px; cursor: pointer; margin-top: 15px;
 }
-button:hover { background-color: #a0522d; }
 
-/* --- MOBILE --- */
+
+/* =========================================
+   VERSIONE MOBILE (RESPONSIVE)
+   Questa parte sovrascrive le regole sopra
+   quando lo schermo è più piccolo di 600px
+   ========================================= */
 @media (max-width: 600px) {
-    #board { transform: scale(0.85); margin: 0 auto; }
-    .player-bar { width: 95%; padding: 10px; flex-wrap: wrap; justify-content: center; gap: 10px; }
-    .player-info { width: 100%; justify-content: center; }
-    .timer { font-size: 18px; }
+
+    /* 1. Scacchiera Fluida */
+    #board {
+        /* Invece di pixel fissi, usiamo frazioni dello spazio disponibile */
+        grid-template-columns: repeat(9, 1fr);
+        grid-template-rows: repeat(9, 1fr);
+        
+        /* La scacchiera occupa il 94% della larghezza dello schermo */
+        width: 94vw; 
+        height: 94vw; /* La rendiamo quadrata */
+        
+        /* Bordi un po' più sottili su mobile */
+        border: 4px solid #5a3a22;
+        gap: 1px; /* Linee più sottili */
+    }
+
+    /* 2. Celle Fluide */
+    .cell {
+        width: auto;  /* Reset larghezza fissa */
+        height: auto; /* Reset altezza fissa */
+    }
+
+    /* 3. Barre Giocatori Compatte */
+    .player-bar {
+        width: 94%; /* Quasi tutta la larghezza */
+        padding: 8px 12px;
+        margin: 5px auto;
+    }
+    
+    .player-name {
+        font-size: 16px;
+        max-width: 100px;
+    }
+    
+    .timer {
+        font-size: 18px;
+        min-width: 60px;
+        padding: 2px 4px;
+    }
+    
+    .color-indicator { width: 20px; height: 20px; }
+    
+    /* 4. Pannello Stato */
+    #status-panel {
+        font-size: 18px;
+        margin: 5px 0;
+    }
+    
+    /* 5. Pezzi */
+    .piece {
+        box-shadow: 1px 1px 3px rgba(0,0,0,0.5); /* Ombra ridotta */
+    }
+    .king {
+        border-width: 2px; /* Bordo re più sottile */
+    }
 }
