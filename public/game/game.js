@@ -12,10 +12,10 @@ const initialLayout = [
 
 // Stato Globale
 let board = [];
-let turn = 'black'; // Nel Tablut inizia il Nero (Assediante)
+let turn = 'black'; 
 let selected = null;
 let gameOver = false;
-let historyHash = {}; // Per la patta (3 ripetizioni)
+let historyHash = {}; 
 
 // Online Vars
 let mode = 'local';
@@ -51,7 +51,6 @@ function drawBoard() {
     const el = document.getElementById('board');
     el.innerHTML = '';
     
-    // Mostra hint se selezionato
     let moves = [];
     if (selected && !gameOver) moves = getMoves(selected.r, selected.c);
 
@@ -62,17 +61,18 @@ function drawBoard() {
             if(r===4 && c===4) cell.classList.add('throne');
             if((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
             
-            // Gestione Click
             cell.onclick = () => handleClick(r, c);
 
-            // Evidenziazione
+            // Evidenziazione Selezione
             if(selected && selected.r === r && selected.c === c) cell.classList.add('selected');
+            
+            // Evidenziazione Mossa Possibile (Hint)
             if(moves.some(m => m.r===r && m.c===c)) {
                 const h = document.createElement('div'); h.className='hint';
                 cell.appendChild(h);
             }
 
-            // Pezzi
+            // Disegno Pezzi
             const val = board[r][c];
             if(val !== 0) {
                 const p = document.createElement('div');
@@ -89,18 +89,16 @@ function drawBoard() {
 
 function handleClick(r, c) {
     if (gameOver) return;
-    if (mode === 'online' && turn !== myColor) return; // Non è il tuo turno
+    if (mode === 'online' && turn !== myColor) return; 
 
     const val = board[r][c];
     
-    // 1. Seleziona Pezzo
     if (isMyPiece(val)) {
         selected = {r, c};
         drawBoard();
         return;
     }
 
-    // 2. Muovi Pezzo
     if (selected && val === 0) {
         const moves = getMoves(selected.r, selected.c);
         if (moves.some(m => m.r === r && m.c === c)) {
@@ -115,10 +113,11 @@ function isMyPiece(val) {
     return false;
 }
 
+// *** MODIFICATO PER IL RE: SOLO 1 PASSO ***
 function getMoves(r, c) {
     let res = [];
     const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
-    const isKing = board[r][c] === 2;
+    const isKing = board[r][c] === 2; // È il Re?
 
     dirs.forEach(d => {
         let i = 1;
@@ -130,12 +129,13 @@ function getMoves(r, c) {
             const targetVal = board[nr][nc];
             const isThrone = (nr===4 && nc===4);
 
-            // REGOLA: Attraversamento Trono
-            // Si può saltare il trono se vuoto (targetVal 0), ma non fermarcisi sopra (a meno che non sia il Re all'inizio, ma qui muove).
-            // Regola: "nessuna pedina... possa ritornarci sopra".
+            // Regola Trono: Si può saltare solo se vuoto
             if (isThrone) {
-                if (targetVal !== 0) break; // Trono occupato (es. Re) -> blocco
-                // Se è trono vuoto, posso attraversarlo (continuo il while), ma non posso fermarmi (non aggiungo a res)
+                if (targetVal !== 0) break; 
+                if (isKing) { // Il Re non può tornare sul trono una volta uscito? Di solito no, ma qui controlliamo solo il movimento base.
+                    // Se vuoi che il Re non possa rientrare nel trono:
+                    // if (isKing) break; 
+                }
                 i++;
                 continue; 
             }
@@ -146,6 +146,11 @@ function getMoves(r, c) {
             if (!isKing && ((nr===0||nr===8) && (nc===0||nc===8))) break; 
 
             res.push({r: nr, c: nc});
+            
+            // *** STOP LOOP SE È IL RE ***
+            // Il Re muove solo di 1 casella, quindi interrompiamo dopo aver aggiunto la prima mossa valida.
+            if (isKing) break; 
+
             i++;
         }
     });
@@ -158,16 +163,12 @@ function makeMove(r1, c1, r2, c2) {
     board[r1][c1] = 0;
     selected = null;
 
-    // Check Catture
     checkCaptures(r2, c2);
 
-    // Cambio Turno
     const nextTurn = turn === 'white' ? 'black' : 'white';
     
-    // Check Vittoria
     if (checkWin()) return;
     
-    // Check Patta (3 ripetizioni)
     const hash = JSON.stringify(board) + turn;
     historyHash[hash] = (historyHash[hash] || 0) + 1;
     if (historyHash[hash] >= 3) {
@@ -180,8 +181,7 @@ function makeMove(r1, c1, r2, c2) {
     drawBoard();
     updateUI();
 
-    // Invio mossa Online
-    if (mode === 'online' && myColor !== nextTurn) { // Se ho appena mosso io
+    if (mode === 'online' && myColor !== nextTurn) { 
         socket.emit('make_move', { gameId, moveData: {r1,c1,r2,c2} });
     }
 }
@@ -190,30 +190,27 @@ function checkCaptures(r, c) {
     const me = board[r][c];
     const isWhite = (me === 1 || me === 2);
     const enemies = isWhite ? [3] : [1, 2];
-
     const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
     
     dirs.forEach(d => {
-        const nr = r + d[0], nc = c + d[1];     // Adiacente
-        const fr = r + d[0]*2, fc = c + d[1]*2; // Oltre adiacente (Incudine)
+        const nr = r + d[0], nc = c + d[1];     
+        const fr = r + d[0]*2, fc = c + d[1]*2; 
 
         if(nr>=0 && nr<9 && enemies.includes(board[nr][nc])) {
             const victim = board[nr][nc];
             
-            // CATTURA DEL RE (Speciale)
             if (victim === 2) {
                 checkKingCapture(nr, nc);
                 return;
             }
 
-            // CATTURA PEDINA NORMALE
             if (fr>=0 && fr<9) {
                 const anvil = board[fr][fc];
                 const isAnvilFriend = isWhite ? (anvil===1 || anvil===2) : (anvil===3);
-                const isStructure = ((fr===0||fr===8) && (fc===0||fc===8)) || (fr===4 && fc===4); // Angoli o Trono vuoto
+                const isStructure = ((fr===0||fr===8) && (fc===0||fc===8)) || (fr===4 && fc===4); 
 
                 if (isAnvilFriend || isStructure) {
-                    board[nr][nc] = 0; // Mangiato
+                    board[nr][nc] = 0; 
                 }
             }
         }
@@ -225,15 +222,11 @@ function checkKingCapture(r, c) {
     const adj = [[r-1,c], [r+1,c], [r,c-1], [r,c+1]];
     
     adj.forEach(([ar, ac]) => {
-        // Se fuori bordo o Trono o Pezzo Nero -> conta come ostile
         if (ar<0 || ar>8 || ac<0 || ac>8 || (ar===4&&ac===4) || board[ar][ac]===3) {
             attackers++;
         }
     });
 
-    // Se Re è vicino al Trono o Bordo bastano 3 attacchi, altrimenti 4.
-    // La logica sopra conta "fuori bordo" e "trono" come 1 attaccante.
-    // Quindi se attackers >= 4, è preso in ogni caso.
     if (attackers >= 4) endGame('Vittoria Neri!');
 }
 
@@ -275,7 +268,24 @@ function initOnline(name, time) {
 
     socket.on('game_start', (data) => {
         gameId = data.gameId;
-        document.getElementById('opp-name').innerText = (data.white === name) ? data.black : data.white;
+        const isMeWhite = (data.white === name);
+        
+        // Imposta nome Avversario
+        document.getElementById('opp-name').innerText = isMeWhite ? data.black : data.white;
+        
+        // Imposta Indicatori Colore Visivi
+        // Se io sono Bianco -> Mio pallino bianco, Avversario nero. E viceversa.
+        const myDot = document.getElementById('my-color');
+        const oppDot = document.getElementById('opp-color');
+        
+        if (isMeWhite) {
+            myDot.className = 'color-indicator is-white';
+            oppDot.className = 'color-indicator is-black';
+        } else {
+            myDot.className = 'color-indicator is-black';
+            oppDot.className = 'color-indicator is-white';
+        }
+
         startGame();
         startPing();
     });
@@ -307,14 +317,26 @@ function startPing() {
     }, 2000);
 }
 
+// *** MODIFICATO PER GESTIRE LE 4 TACCHE ***
 function updateSignal(ms) {
+    // Seleziona l'elemento tacche del giocatore (per ora mettiamo il segnale solo sul "tuo" lato per semplicità, 
+    // oppure potremmo sdoppiarlo se il server inviasse il ping dell'avversario)
     const el = document.getElementById('my-signal');
-    el.className = 'signal ' + (ms < 150 ? 'good' : (ms < 400 ? 'med' : 'bad'));
     
-    if(ms > 500) badConnCount++;
+    // Rimuovi vecchie classi
+    el.classList.remove('signal-1', 'signal-2', 'signal-3', 'signal-4');
+    
+    let quality = 'signal-4'; // Eccellente default
+    if (ms > 500) quality = 'signal-1';      // Scarsa
+    else if (ms > 300) quality = 'signal-2'; // Media
+    else if (ms > 100) quality = 'signal-3'; // Buona
+    
+    el.classList.add(quality);
+    
+    if(ms > 600) badConnCount++;
     else badConnCount = 0;
 
-    if(badConnCount > 10) { // Circa 20 secondi di lag pesante
+    if(badConnCount > 10) { 
         alert("Connessione instabile. Partita annullata.");
         window.location.href='../index.html';
     }
