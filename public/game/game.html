@@ -4,27 +4,40 @@
     <meta charset="UTF-8">
     <title>Tablut Game</title>
     <link rel="stylesheet" href="game.css">
-    <script src="/socket.io/socket.io.js"></script> </head>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
 <body>
 
     <div id="online-ui" class="hidden">
         <div class="player-bar top">
-            <span id="opp-name">Avversario</span>
+            <div class="player-info">
+                <div id="opp-color" class="color-indicator"></div> <span id="opp-name" class="player-name">Avversario</span>
+            </div>
             <span class="timer" id="opp-timer">--:--</span>
-            <div class="signal" id="opp-signal"></div>
+            
+            <div class="signal-bars signal-4" id="opp-signal">
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            </div>
         </div>
     </div>
 
     <div id="game-wrapper">
-        <div id="status-panel">Tocca ai: <strong id="current-player">Neri</strong></div>
+        <div id="status-panel" style="margin-bottom: 10px; font-size: 20px;">
+            Tocca ai: <strong id="current-player">Neri</strong>
+        </div>
         <div id="board"></div>
     </div>
 
     <div id="online-ui-bottom" class="hidden">
         <div class="player-bar bottom">
-            <span id="my-name">Tu</span>
+            <div class="player-info">
+                <div id="my-color" class="color-indicator"></div> <span id="my-name" class="player-name">Tu</span>
+            </div>
             <span class="timer" id="my-timer">--:--</span>
-            <div class="signal" id="my-signal"></div>
+            
+            <div class="signal-bars signal-4" id="my-signal">
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            </div>
         </div>
     </div>
 
@@ -32,7 +45,7 @@
         <div class="modal-content">
             <h2 id="winner-title">Vittoria!</h2>
             <p id="winner-msg"></p>
-            <button onclick="window.location.href='../index.html'">Torna al Menu</button>
+            <button onclick="window.location.href='../index.html'" style="padding: 10px 20px; font-size: 18px; cursor: pointer;">Torna al Menu</button>
         </div>
     </div>
 
