@@ -113,42 +113,41 @@ function isMyPiece(val) {
     return false;
 }
 
-// *** MODIFICATO PER IL RE: SOLO 1 PASSO ***
+// *** LOGICA MOVIMENTO RE AGGIORNATA (SOLO 1 PASSO) ***
 function getMoves(r, c) {
     let res = [];
-    const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
-    const isKing = board[r][c] === 2; // È il Re?
+    const dirs = [[0,1], [0,-1], [1,0], [-1,0]]; // Solo ortogonali
+    const isKing = board[r][c] === 2; 
 
     dirs.forEach(d => {
         let i = 1;
         while(true) {
             let nr = r + d[0]*i;
             let nc = c + d[1]*i;
+            
             if(nr<0 || nr>8 || nc<0 || nc>8) break;
 
             const targetVal = board[nr][nc];
             const isThrone = (nr===4 && nc===4);
 
-            // Regola Trono: Si può saltare solo se vuoto
+            // Regola Trono
             if (isThrone) {
-                if (targetVal !== 0) break; 
-                if (isKing) { // Il Re non può tornare sul trono una volta uscito? Di solito no, ma qui controlliamo solo il movimento base.
-                    // Se vuoi che il Re non possa rientrare nel trono:
-                    // if (isKing) break; 
-                }
+                if (targetVal !== 0) break; // Trono occupato
+                if (isKing) break; // Il Re non può rientrare nel trono (Regola Tablut classica)
+                
+                // Le pedine saltano il trono: continuo il loop ma non aggiungo la mossa
                 i++;
                 continue; 
             }
 
             if(targetVal !== 0) break; // C'è un pezzo
 
-            // Regola Angoli: Solo Re
+            // Regola Angoli: Solo il Re può andarci
             if (!isKing && ((nr===0||nr===8) && (nc===0||nc===8))) break; 
 
             res.push({r: nr, c: nc});
             
-            // *** STOP LOOP SE È IL RE ***
-            // Il Re muove solo di 1 casella, quindi interrompiamo dopo aver aggiunto la prima mossa valida.
+            // *** STOP LOOP SE È IL RE (1 passo max) ***
             if (isKing) break; 
 
             i++;
@@ -227,6 +226,7 @@ function checkKingCapture(r, c) {
         }
     });
 
+    // Se attaccanti >= 4 vince il nero (o 3 se vicino al trono/bordo per logica interna Tablut)
     if (attackers >= 4) endGame('Vittoria Neri!');
 }
 
@@ -273,8 +273,7 @@ function initOnline(name, time) {
         // Imposta nome Avversario
         document.getElementById('opp-name').innerText = isMeWhite ? data.black : data.white;
         
-        // Imposta Indicatori Colore Visivi
-        // Se io sono Bianco -> Mio pallino bianco, Avversario nero. E viceversa.
+        // --- IMPOSTA INDICATORI COLORE ---
         const myDot = document.getElementById('my-color');
         const oppDot = document.getElementById('opp-color');
         
@@ -317,19 +316,14 @@ function startPing() {
     }, 2000);
 }
 
-// *** MODIFICATO PER GESTIRE LE 4 TACCHE ***
 function updateSignal(ms) {
-    // Seleziona l'elemento tacche del giocatore (per ora mettiamo il segnale solo sul "tuo" lato per semplicità, 
-    // oppure potremmo sdoppiarlo se il server inviasse il ping dell'avversario)
     const el = document.getElementById('my-signal');
-    
-    // Rimuovi vecchie classi
     el.classList.remove('signal-1', 'signal-2', 'signal-3', 'signal-4');
     
-    let quality = 'signal-4'; // Eccellente default
-    if (ms > 500) quality = 'signal-1';      // Scarsa
-    else if (ms > 300) quality = 'signal-2'; // Media
-    else if (ms > 100) quality = 'signal-3'; // Buona
+    let quality = 'signal-4'; // Verde Scuro (Ottima)
+    if (ms > 500) quality = 'signal-1';      // Rosso
+    else if (ms > 300) quality = 'signal-2'; // Giallo
+    else if (ms > 100) quality = 'signal-3'; // Verde Chiaro
     
     el.classList.add(quality);
     
