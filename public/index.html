@@ -1,1 +1,39 @@
+<div id="main-menu">
+    <h1>Tablut Online</h1>
+    
+    <div class="tabs">
+        <button onclick="showTab('local')">Partita Locale</button>
+        <button onclick="showTab('online')">Partita Online</button>
+    </div>
 
+    <div id="local-tab">
+        <p>Gioca sullo stesso dispositivo.</p>
+        <a href="game/game.html?mode=local"><button>Gioca Locale</button></a>
+    </div>
+
+    <div id="online-tab" class="hidden">
+        <input type="text" id="username" placeholder="Inserisci il tuo nome" maxlength="15">
+        <select id="time-control">
+            <option value="no-time">Senza Tempo</option>
+            <option value="10">10 Minuti</option>
+            <option value="30">30 Minuti</option>
+        </select>
+        <button id="find-match-btn">Cerca Avversario</button>
+    </div>
+</div>
+
+<script>
+    function showTab(tab) {
+        document.getElementById('local-tab').classList.add('hidden');
+        document.getElementById('online-tab').classList.add('hidden');
+        document.getElementById(tab + '-tab').classList.remove('hidden');
+    }
+
+    document.getElementById('find-match-btn').addEventListener('click', () => {
+        const name = document.getElementById('username').value;
+        const time = document.getElementById('time-control').value;
+        if(!name) return alert("Inserisci un nome!");
+        // Reindirizza passando i parametri
+        window.location.href = `game/game.html?mode=online&name=${encodeURIComponent(name)}&time=${time}`;
+    });
+</script>
