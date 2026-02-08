@@ -1,1 +1,66 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tablut - Partita in Corso</title>
+    <link rel="stylesheet" href="game.css">
+</head>
+<body>
 
+    <div id="settings-icon">⚙️</div>
+
+    <div id="settings-menu" class="hidden">
+        <h3>Opzioni</h3>
+        <label class="switch-container">
+            <input type="checkbox" id="toggle-hints" checked>
+            <span class="label-text">Mostra mosse</span>
+        </label>
+        <hr>
+        <button id="restart-game-btn" style="background-color: #d32f2f;">Nuova Partita</button>
+        <br><br>
+        <button id="close-settings">Chiudi</button>
+    </div>
+
+    <a href="../index.html" class="home-link">🏠 Torna alla Home</a>
+
+    <div id="game-wrapper">
+        <div id="game-layout">
+            <div id="board-area">
+                <div id="status-panel">
+                    <span id="turn-indicator">Tocca ai: <strong id="current-player">Neri</strong></span>
+                </div>
+                <div id="board" class="board"></div>
+            </div>
+
+            <div id="sidebar">
+                <h3>Storia Partita</h3>
+                <div id="move-history-container">
+                    <table id="move-table">
+                        <thead>
+                            <tr><th>#</th><th>Neri</th><th>Bianchi</th></tr>
+                        </thead>
+                        <tbody id="move-list-body"></tbody>
+                    </table>
+                </div>
+                <div id="history-controls">
+                    <button id="btn-prev" class="nav-btn">◀</button>
+                    <button id="btn-next" class="nav-btn">▶</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-over-modal" class="hidden">
+        <div class="modal-content">
+            <h2 id="winner-title">Vittoria!</h2>
+            <p id="winner-message">...</p>
+            <div class="modal-buttons">
+                <button id="play-again-btn">Gioca di nuovo</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
