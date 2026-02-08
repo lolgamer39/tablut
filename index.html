@@ -1,1 +1,45 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tablut - Home</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Stili specifici per la intro, sovrascrivendo o estendendo style.css */
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        #main-menu {
+            display: block; /* Sempre visibile qui */
+            background: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 2px solid #8b4513;
+        }
+        #title-container { position: relative; top: auto; left: auto; margin-bottom: 20px; }
+        #main-title { max-width: 300px; width: 80%; }
+    </style>
+</head>
+<body>
 
+    <div id="title-container">
+        <img src="title.png" alt="Tablut - La Sfida" id="main-title">
+    </div>
+
+    <div id="main-menu">
+        <h1>Benvenuto a Tablut</h1>
+        <p>Il gioco vichingo di strategia.</p>
+        <p>Difendi il Re o catturalo!</p>
+        <br>
+        <a href="game/game.html">
+            <button id="start-btn">Entra nell'Arena</button>
+        </a>
+    </div>
+
+</body>
+</html>
