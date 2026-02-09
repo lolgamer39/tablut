@@ -10,14 +10,13 @@ const initialLayout = [
     [0, 0, 0, 3, 3, 3, 0, 0, 0]
 ];
 
-// Stato Globale
 let board = [];
 let turn = 'black'; 
 let selected = null;
 let gameOver = false;
 let historyHash = {}; 
+let gameHistoryList = []; // Array per salvare la storia completa (per l'undo)
 
-// Online Vars
 let mode = 'local';
 let socket;
 let myColor = null;
@@ -25,15 +24,27 @@ let gameId = null;
 let timers = { white: 0, black: 0 };
 let timerInterval = null;
 let badConnCount = 0;
+let movesCount = 0; // Contatore mosse per distinguere Annulla da Abbandona
+let undosLeft = 3;  // Contatore Annulla Mossa
+let storedParams = {}; // Per "Gioca di Nuovo"
 
 document.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     mode = params.get('mode') || 'local';
+    storedParams = { name: params.get('name'), time: params.get('time') };
 
     if (mode === 'online') {
-        initOnline(params.get('name'), params.get('time'));
+        initOnline(storedParams.name, storedParams.time);
     } else {
         startGame();
+    }
+    
+    // Gestione tasto Gioca di Nuovo (stessi settings)
+    const playAgainBtn = document.getElementById('play-again-same-settings');
+    if(playAgainBtn) {
+        playAgainBtn.onclick = () => {
+            window.location.href = `game.html?mode=online&name=${encodeURIComponent(storedParams.name)}&time=${storedParams.time}`;
+        };
     }
 });
 
@@ -43,8 +54,12 @@ function startGame() {
     gameOver = false;
     selected = null;
     historyHash = {};
+    gameHistoryList = [JSON.stringify(board)]; // Salva stato iniziale
+    movesCount = 0;
+    undosLeft = 3;
     drawBoard();
     updateUI();
+    updateButtonsUI(); // Aggiorna tasto Abbandona/Annulla
 }
 
 function drawBoard() {
@@ -63,16 +78,12 @@ function drawBoard() {
             
             cell.onclick = () => handleClick(r, c);
 
-            // Evidenziazione Selezione
             if(selected && selected.r === r && selected.c === c) cell.classList.add('selected');
-            
-            // Evidenziazione Mossa Possibile (Hint)
             if(moves.some(m => m.r===r && m.c===c)) {
                 const h = document.createElement('div'); h.className='hint';
                 cell.appendChild(h);
             }
 
-            // Disegno Pezzi
             const val = board[r][c];
             if(val !== 0) {
                 const p = document.createElement('div');
@@ -84,8 +95,6 @@ function drawBoard() {
         }
     }
 }
-
-// --- LOGICA DI GIOCO ---
 
 function handleClick(r, c) {
     if (gameOver) return;
@@ -113,7 +122,6 @@ function isMyPiece(val) {
     return false;
 }
 
-// Logica Movimento Re (1 Passo)
 function getMoves(r, c) {
     let res = [];
     const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
@@ -124,26 +132,18 @@ function getMoves(r, c) {
         while(true) {
             let nr = r + d[0]*i;
             let nc = c + d[1]*i;
-            
             if(nr<0 || nr>8 || nc<0 || nc>8) break;
-
             const targetVal = board[nr][nc];
             const isThrone = (nr===4 && nc===4);
-
             if (isThrone) {
                 if (targetVal !== 0) break; 
                 if (isKing) break; 
-                i++;
-                continue; 
+                i++; continue; 
             }
-
             if(targetVal !== 0) break;
             if (!isKing && ((nr===0||nr===8) && (nc===0||nc===8))) break; 
-
             res.push({r: nr, c: nc});
-            
             if (isKing) break; 
-
             i++;
         }
     });
@@ -151,12 +151,17 @@ function getMoves(r, c) {
 }
 
 function makeMove(r1, c1, r2, c2) {
+    // Aggiorna stato locale
     const piece = board[r1][c1];
     board[r2][c2] = piece;
     board[r1][c1] = 0;
     selected = null;
+    movesCount++; // Incremento mosse
 
     checkCaptures(r2, c2);
+
+    // Salva storia per Undo
+    gameHistoryList.push(JSON.stringify(board));
 
     const nextTurn = turn === 'white' ? 'black' : 'white';
     
@@ -173,13 +178,14 @@ function makeMove(r1, c1, r2, c2) {
     turn = nextTurn;
     drawBoard();
     updateUI();
+    updateButtonsUI(); // Aggiorna bottone Abbandona/Annulla
 
     if (mode === 'online' && myColor !== nextTurn) { 
         socket.emit('make_move', { gameId, moveData: {r1,c1,r2,c2} });
     }
 }
 
-// *** LOGICA CATTURA MODIFICATA (Trono Trasparente) ***
+// --- LOGICA CATTURE (Trono trasparente incluso) ---
 function checkCaptures(r, c) {
     const me = board[r][c];
     const isWhite = (me === 1 || me === 2);
@@ -187,94 +193,51 @@ function checkCaptures(r, c) {
     const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
     
     dirs.forEach(d => {
-        const nr = r + d[0], nc = c + d[1];     // Vittima
-        const fr = r + d[0]*2, fc = c + d[1]*2; // Incudine (Oltre la vittima)
-
+        const nr = r + d[0], nc = c + d[1];     
+        const fr = r + d[0]*2, fc = c + d[1]*2; 
         if(nr>=0 && nr<9 && enemies.includes(board[nr][nc])) {
             const victim = board[nr][nc];
-            
-            // Se è il Re, gestione separata
-            if (victim === 2) {
-                checkKingCapture(nr, nc);
-                return;
-            }
-
+            if (victim === 2) { checkKingCapture(nr, nc); return; }
             if (fr>=0 && fr<9) {
                 const anvil = board[fr][fc];
-                
-                // 1. Controllo se l'incudine è una pedina amica
                 const isAnvilFriend = isWhite ? (anvil===1 || anvil===2) : (anvil===3);
-                
-                // 2. Controllo Strutture (SOLO Angoli ora, non il Trono)
                 const isCorner = ((fr===0||fr===8) && (fc===0||fc===8)); 
-                
-                // 3. Controllo Trono (Speciale)
                 const isThrone = (fr===4 && fc===4);
-
                 let capture = false;
-
-                if (isAnvilFriend || isCorner) {
-                    capture = true;
-                } 
+                if (isAnvilFriend || isCorner) capture = true;
                 else if (isThrone) {
-                    // SE L'INCUDINE È IL TRONO:
-                    // Controlliamo cosa c'è DIETRO il trono (fr+d[0], fc+d[1])
-                    const behindTr = fr + d[0];
-                    const behindTc = fc + d[1];
-                    
+                    const behindTr = fr + d[0], behindTc = fc + d[1];
                     if (behindTr>=0 && behindTr<9 && behindTc>=0 && behindTc<9) {
                         const behindVal = board[behindTr][behindTc];
-                        // Se dietro il trono c'è un amico, il trono fa da ponte -> CATTURA
                         const isBehindFriend = isWhite ? (behindVal===1 || behindVal===2) : (behindVal===3);
                         if (isBehindFriend) capture = true;
                     }
                 }
-
-                if (capture) {
-                    board[nr][nc] = 0; 
-                }
+                if (capture) board[nr][nc] = 0; 
             }
         }
     });
 }
 
-// *** CATTURA RE MODIFICATA (Trono Trasparente) ***
 function checkKingCapture(r, c) {
     let attackers = 0;
     const adj = [[r-1,c], [r+1,c], [r,c-1], [r,c+1]];
-    
     adj.forEach(([ar, ac]) => {
-        // 1. Fuori bordo conta come muro (attaccante)
-        if (ar<0 || ar>8 || ac<0 || ac>8) {
-            attackers++;
-        } 
-        // 2. Pedina Nera conta come attaccante
-        else if (board[ar][ac] === 3) {
-            attackers++;
-        }
-        // 3. Trono conta come attaccante SOLO se dietro c'è un nero
+        if (ar<0 || ar>8 || ac<0 || ac>8) attackers++;
+        else if (board[ar][ac] === 3) attackers++;
         else if (ar===4 && ac===4) {
-            // Calcola la casella dietro al trono rispetto al Re
-            // Vettore direzione: (ar-r, ac-c)
-            const behindTr = ar + (ar-r);
-            const behindTc = ac + (ac-c);
-            
+            const behindTr = ar + (ar-r), behindTc = ac + (ac-c);
             if (behindTr>=0 && behindTr<9 && behindTc>=0 && behindTc<9) {
-                // Se dietro il trono c'è un nero, conta +1
-                if (board[behindTr][behindTc] === 3) {
-                    attackers++;
-                }
+                if (board[behindTr][behindTc] === 3) attackers++;
             }
         }
     });
-
     if (attackers >= 4) endGame('Vittoria Neri!');
 }
 
 function checkWin() {
     let king = null;
     for(let i=0; i<9; i++) for(let j=0; j<9; j++) if(board[i][j]===2) king={r:i, c:j};
-    
     if(!king) { endGame('Vittoria Neri!'); return true; }
     if((king.r===0||king.r===8) && (king.c===0||king.c===8)) { endGame('Vittoria Bianchi!'); return true; }
     return false;
@@ -293,24 +256,70 @@ function updateUI() {
     el.style.color = turn === 'black' ? "black" : "#d4a017";
 }
 
-// --- LOGICA ONLINE (PROSPETTIVA UTENTE) ---
+// --- NUOVA GESTIONE PULSANTI AZIONE ---
+function updateButtonsUI() {
+    const btn = document.getElementById('surrender-btn');
+    const undoBtn = document.getElementById('undo-btn');
+    
+    // Aggiorna testo pulsante Annulla Mossa
+    undoBtn.innerText = `Annulla Mossa (${undosLeft})`;
+    undoBtn.disabled = (undosLeft <= 0 || gameOver);
+
+    // Gestione Abbandona / Annulla
+    if (movesCount === 0) {
+        btn.innerText = "Annulla Partita";
+        btn.style.backgroundColor = "#ff9800"; // Arancione per annullamento soft
+    } else {
+        btn.innerText = "Abbandona";
+        btn.style.backgroundColor = "#d32f2f"; // Rosso per resa
+    }
+}
+
+// Funzioni chiamate dai pulsanti HTML
+function handleSurrender() {
+    const action = movesCount === 0 ? "annullare" : "abbandonare";
+    if(confirm(`Sei sicuro di voler ${action} la partita?`)) {
+        socket.emit('surrender_game', { gameId });
+    }
+}
+
+function requestUndo() {
+    if(undosLeft > 0 && turn !== myColor) { // Posso chiedere annulla solo se NON tocca a me (ho appena mosso)
+        socket.emit('request_undo', { gameId });
+        alert("Richiesta inviata all'avversario...");
+    } else if (turn === myColor) {
+        alert("Puoi annullare solo dopo aver fatto la tua mossa (mentre tocca all'avversario).");
+    }
+}
+
+function respondUndo(answer) {
+    document.getElementById('undo-request-modal').classList.add('hidden');
+    socket.emit('answer_undo', { gameId, answer });
+}
+
+
+// --- LOGICA ONLINE & SOCKET ---
 function initOnline(name, time) {
     document.getElementById('online-ui').classList.remove('hidden');
     document.getElementById('online-ui-bottom').classList.remove('hidden');
     
     document.getElementById('my-name').innerText = name;
-    
     if (time !== 'no-time') {
         timers.white = parseInt(time)*60;
         timers.black = parseInt(time)*60;
     }
 
-    socket = io();
+    // Configurazione Socket con Riconnessione
+    socket = io({
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000
+    });
+    
     socket.emit('find_game', { username: name, timeControl: time });
 
     socket.on('game_start', (data) => {
         gameId = data.gameId;
-        
         const isMeWhite = (data.white.trim() === name.trim());
         const oppName = isMeWhite ? data.black : data.white;
         document.getElementById('opp-name').innerText = oppName;
@@ -325,7 +334,6 @@ function initOnline(name, time) {
             myDot.className = 'color-indicator is-black';
             oppDot.className = 'color-indicator is-white';
         }
-
         startGame();
         startPing();
     });
@@ -339,13 +347,73 @@ function initOnline(name, time) {
         makeMove(m.r1, m.c1, m.r2, m.c2);
     });
 
-    socket.on('game_aborted', (msg) => { alert(msg); window.location.href='../index.html'; });
-    socket.on('opponent_disconnected', () => { endGame("Vittoria (Avversario Disconnesso)"); });
-    socket.on('time_expired', (d) => { endGame(d.loser === 'white' ? "Vittoria Neri (Tempo)" : "Vittoria Bianchi (Tempo)"); });
+    // -- EVENTI NUOVI --
+    socket.on('game_over_forced', ({ winner, reason }) => {
+        if (reason === 'cancelled') {
+            document.getElementById('game-cancelled-modal').classList.remove('hidden');
+        } else {
+            endGame(winner === 'white' ? 'Vittoria Bianchi (Resa)' : 'Vittoria Neri (Resa)');
+        }
+    });
+
+    socket.on('undo_requested', () => {
+        document.getElementById('undo-request-modal').classList.remove('hidden');
+    });
+
+    socket.on('undo_accepted', (data) => {
+        // Torna indietro di 1 mossa (sincronizza board e turno)
+        gameHistoryList.pop(); // Rimuovi stato corrente
+        const prevState = gameHistoryList[gameHistoryList.length - 1];
+        
+        board = JSON.parse(prevState);
+        turn = data.newTurn;
+        movesCount--;
+        
+        // Aggiorna contatori undos ricevuti dal server
+        if (myColor === 'white') undosLeft = data.whiteUndos;
+        else undosLeft = data.blackUndos;
+
+        drawBoard();
+        updateUI();
+        updateButtonsUI();
+        alert("Annullamento mossa accettato!");
+    });
+
+    socket.on('undo_refused', () => {
+        alert("L'avversario ha rifiutato l'annullamento.");
+    });
     
+    // GESTIONE DISCONNESSIONI
+    socket.on('opponent_connection_lost', () => {
+        document.getElementById('opponent-warning').classList.remove('hidden');
+    });
+    
+    socket.on('game_over_timeout', ({ winner, reason }) => {
+        document.getElementById('opponent-warning').classList.add('hidden');
+        if (reason === 'disconnection') endGame(`Vittoria ${winner} (Disconnessione)`);
+        else endGame(`Vittoria ${winner} (Tempo Scaduto)`);
+    });
+
+    socket.on('time_expired', (d) => { endGame(d.loser === 'white' ? "Vittoria Neri (Tempo)" : "Vittoria Bianchi (Tempo)"); });
+
+    // Gestione Heartbeat Client -> Server
     socket.on('pong', () => {
         const ms = Date.now() - lastPing;
         updateSignal(ms);
+        // Nascondi avviso se connessione torna buona
+        document.getElementById('connection-warning').classList.add('hidden');
+    });
+
+    // Eventi di sistema Socket.io per rilevare problemi locali
+    socket.on('connect_error', () => {
+        document.getElementById('connection-warning').classList.remove('hidden');
+    });
+    socket.on('reconnect', () => {
+        document.getElementById('connection-warning').classList.add('hidden');
+        // Se mi riconnetto, devo dire al server che sono tornato?
+        // Socket.io gestisce il canale, ma per la logica "game" complessa servirebbe un "rejoin".
+        // Per questa implementazione base, se la socket cade e torna su, speriamo che l'ID sia mantenuto o gestito.
+        // Nota: senza sessioni persistenti, un F5 rompe tutto. Questo gestisce solo wifi on/off.
     });
 }
 
@@ -355,26 +423,23 @@ function startPing() {
         lastPing = Date.now();
         socket.emit('ping');
     }, 2000);
+    
+    // Check timeout locale (se server non risponde da 30s)
+    setInterval(() => {
+        if(Date.now() - lastPing > 30000) {
+             document.getElementById('connection-warning').classList.remove('hidden');
+        }
+    }, 5000);
 }
 
 function updateSignal(ms) {
     const el = document.getElementById('my-signal');
     el.classList.remove('signal-1', 'signal-2', 'signal-3', 'signal-4');
-    
     let quality = 'signal-4'; 
     if (ms > 500) quality = 'signal-1';      
     else if (ms > 300) quality = 'signal-2'; 
     else if (ms > 100) quality = 'signal-3'; 
-    
     el.classList.add(quality);
-    
-    if(ms > 600) badConnCount++;
-    else badConnCount = 0;
-
-    if(badConnCount > 10) { 
-        alert("Connessione instabile. Partita annullata.");
-        window.location.href='../index.html';
-    }
 }
 
 function startTimer() {
@@ -382,13 +447,11 @@ function startTimer() {
     timerInterval = setInterval(() => {
         if(gameOver) return;
         if(turn === 'white') timers.white--; else timers.black--;
-        
         const fmt = (t) => {
             if(t<0) return "00:00";
             let m=Math.floor(t/60), s=t%60;
             return `${m}:${s<10?'0'+s:s}`;
         };
-        
         document.getElementById('my-timer').innerText = fmt(myColor==='white'?timers.white:timers.black);
         document.getElementById('opp-timer').innerText = fmt(myColor==='white'?timers.black:timers.white);
     }, 1000);
