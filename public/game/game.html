@@ -2,66 +2,76 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Tablut Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Partita - Tablut</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="game.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
 
-    <div id="connection-warning" class="hidden">⚠️ Connessione instabile...</div>
-    <div id="opponent-warning" class="hidden">⏳ L'avversario ha perso la connessione...</div>
+    <div class="bg-overlay"></div>
 
-    <div id="layout-container">
+    <div id="connection-warning" class="hidden toast toast-warning">⚠️ Connessione instabile...</div>
+    <div id="opponent-warning" class="hidden toast toast-info">⏳ L'avversario ha perso la connessione...</div>
+
+    <div class="app-container">
         
-        <div id="main-column">
+        <div class="game-section">
             
-            <div id="online-ui" class="hidden">
-                <div class="player-bar top">
-                    <div class="player-info-container">
-                        <div id="opp-color" class="color-indicator"></div> 
+            <div id="online-ui" class="hidden glass-panel player-bar top-bar">
+                <div class="player-info-group">
+                    <div id="opp-color" class="color-dot"></div> 
+                    <div class="name-box">
                         <span id="opp-name" class="player-name">Avversario</span>
+                        <span class="role-label">Sfidante</span>
                     </div>
-                    <div class="stats-container">
-                        <span class="timer" id="opp-timer">--:--</span>
-                        <div class="signal-bars signal-4" id="opp-signal">
-                            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-                        </div>
+                </div>
+                <div class="stats-group">
+                    <span class="timer-badge" id="opp-timer">--:--</span>
+                    <div class="signal-bars signal-4" id="opp-signal">
+                        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
                     </div>
                 </div>
             </div>
 
-            <div id="game-wrapper">
-                <div id="status-panel">
-                    Tocca ai: <strong id="current-player">Neri</strong>
+            <div class="board-container">
+                <div id="status-badge" class="status-badge">
+                    Tocca ai <strong id="current-player">Neri</strong>
                 </div>
                 <div id="board"></div>
             </div>
 
-            <div id="online-ui-bottom" class="hidden">
-                <div class="player-bar bottom">
-                    <div class="player-info-container">
-                        <div id="my-color" class="color-indicator"></div> 
+            <div id="online-ui-bottom" class="hidden glass-panel player-bar bottom-bar">
+                <div class="player-info-group">
+                    <div id="my-color" class="color-dot"></div> 
+                    <div class="name-box">
                         <span id="my-name" class="player-name">Tu</span>
-                    </div>
-                    <div class="stats-container">
-                        <span class="timer" id="my-timer">--:--</span>
-                        <div class="signal-bars signal-4" id="my-signal">
-                            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-                        </div>
+                        <span class="role-label">Giocatore</span>
                     </div>
                 </div>
-                
-                <div id="action-buttons">
-                    <button id="undo-btn" onclick="requestUndo()">Annulla Mossa</button>
-                    <button id="surrender-btn" onclick="handleSurrender()">Annulla Partita</button>
+                <div class="stats-group">
+                    <span class="timer-badge" id="my-timer">--:--</span>
+                    <div class="signal-bars signal-4" id="my-signal">
+                        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    </div>
                 </div>
             </div>
+
+            <div id="mobile-actions" class="mobile-only-actions">
+                <button id="undo-btn-mobile" class="btn btn-secondary btn-sm" onclick="requestUndo()">Annulla</button>
+                <button id="surrender-btn-mobile" class="btn btn-danger btn-sm" onclick="handleSurrender()">Abbandona</button>
+            </div>
+
         </div>
 
-        <div id="sidebar">
-            <h3>Storia Partita</h3>
-            <div id="move-history-container">
-                <table id="move-table">
+        <div class="sidebar-section glass-panel">
+            <div class="sidebar-header">
+                <h3>Storico Mosse</h3>
+            </div>
+            
+            <div class="history-scroll-area" id="move-history-container">
+                <table class="move-table" id="move-table">
                     <thead>
                         <tr>
                             <th>#</th>
@@ -73,42 +83,46 @@
                         </tbody>
                 </table>
             </div>
-            
-            <div id="history-controls">
-                <button id="btn-prev" class="nav-btn">◀ Indietro</button>
-                <button id="btn-next" class="nav-btn">Avanti ▶</button>
+
+            <div class="history-controls">
+                <button id="btn-prev" class="btn btn-outline btn-icon">◀</button>
+                <button id="btn-next" class="btn btn-outline btn-icon">▶</button>
             </div>
-            <p class="small-note">Usa le frecce della tastiera per rivedere le mosse</p>
+
+            <div class="desktop-actions">
+                <button id="undo-btn" class="btn btn-secondary" onclick="requestUndo()">Richiedi Annullamento</button>
+                <button id="surrender-btn" class="btn btn-danger" onclick="handleSurrender()">Abbandona Partita</button>
+            </div>
         </div>
 
     </div>
 
-    <div id="game-over-modal" class="hidden">
-        <div class="modal-content">
+    <div id="game-over-modal" class="modal-overlay hidden">
+        <div class="modal-card">
             <h2 id="winner-title">Vittoria!</h2>
-            <p id="winner-msg"></p>
-            <button onclick="window.location.href='../index.html'">Torna al Menu</button>
+            <p id="winner-msg" class="modal-desc"></p>
+            <button class="btn btn-primary" onclick="window.location.href='../index.html'">Torna al Menu</button>
         </div>
     </div>
 
-    <div id="game-cancelled-modal" class="hidden">
-        <div class="modal-content">
-            <h2 style="color: #d32f2f;">Partita Annullata</h2>
-            <p>La partita è stata interrotta prima dell'inizio.</p>
-            <div class="modal-buttons-col">
-                <button onclick="window.location.href='../index.html'">🏠 Home</button>
-                <button id="play-again-same-settings">🔄 Cerca Nuovo Avversario</button>
+    <div id="game-cancelled-modal" class="modal-overlay hidden">
+        <div class="modal-card modal-warning">
+            <h2>Partita Annullata</h2>
+            <p class="modal-desc">La partita è stata interrotta.</p>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="window.location.href='../index.html'">Home</button>
+                <button class="btn btn-primary" id="play-again-same-settings">Cerca Nuovo</button>
             </div>
         </div>
     </div>
 
-    <div id="undo-request-modal" class="hidden">
-        <div class="modal-content small-modal">
-            <h3>Richiesta di Ritiro</h3>
-            <p>L'avversario chiede di annullare l'ultima mossa.</p>
-            <div class="row-btns">
-                <button onclick="respondUndo(true)" style="background:#4caf50;">Accetta</button>
-                <button onclick="respondUndo(false)" style="background:#f44336;">Rifiuta</button>
+    <div id="undo-request-modal" class="modal-overlay hidden">
+        <div class="modal-card modal-info">
+            <h3>Richiesta Ritiro</h3>
+            <p>L'avversario vuole annullare l'ultima mossa.</p>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="respondUndo(true)">Accetta</button>
+                <button class="btn btn-danger" onclick="respondUndo(false)">Rifiuta</button>
             </div>
         </div>
     </div>
