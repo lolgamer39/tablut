@@ -15,7 +15,8 @@ let turn = 'black';
 let selected = null;
 let gameOver = false;
 let historyHash = {}; 
-let gameHistoryList = []; // Array per salvare la storia completa (per l'undo)
+let gameHistoryList = []; // Array per salvare la storia completa
+let moveLog = []; // Log testuale per la tabella
 
 let mode = 'local';
 let socket;
@@ -24,9 +25,10 @@ let gameId = null;
 let timers = { white: 0, black: 0 };
 let timerInterval = null;
 let badConnCount = 0;
-let movesCount = 0; // Contatore mosse per distinguere Annulla da Abbandona
-let undosLeft = 3;  // Contatore Annulla Mossa
-let storedParams = {}; // Per "Gioca di Nuovo"
+let movesCount = 0; 
+let undosLeft = 3;  
+let storedParams = {}; 
+let currentHistoryIndex = 0; // Per la navigazione visiva
 
 document.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
@@ -39,7 +41,18 @@ document.addEventListener('DOMContentLoaded', () => {
         startGame();
     }
     
-    // Gestione tasto Gioca di Nuovo (stessi settings)
+    // Bottoni Navigazione Storia
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    if(btnPrev) btnPrev.addEventListener('click', () => navigateHistory(-1));
+    if(btnNext) btnNext.addEventListener('click', () => navigateHistory(1));
+
+    // Tastiera Frecce
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') navigateHistory(-1);
+        if (e.key === 'ArrowRight') navigateHistory(1);
+    });
+
     const playAgainBtn = document.getElementById('play-again-same-settings');
     if(playAgainBtn) {
         playAgainBtn.onclick = () => {
@@ -54,20 +67,35 @@ function startGame() {
     gameOver = false;
     selected = null;
     historyHash = {};
-    gameHistoryList = [JSON.stringify(board)]; // Salva stato iniziale
+    gameHistoryList = [JSON.stringify(board)];
+    moveLog = [];
     movesCount = 0;
     undosLeft = 3;
+    currentHistoryIndex = 0;
+    
     drawBoard();
     updateUI();
-    updateButtonsUI(); // Aggiorna tasto Abbandona/Annulla
+    updateButtonsUI();
+    updateMoveTable();
+    updateNavUI();
 }
 
+// Disegna la scacchiera in base all'indice corrente della storia
 function drawBoard() {
     const el = document.getElementById('board');
     el.innerHTML = '';
     
+    // Recupera lo stato da disegnare (se stiamo guardando il passato)
+    let stateToDraw = board;
+    if (gameHistoryList.length > 0) {
+        stateToDraw = JSON.parse(gameHistoryList[currentHistoryIndex]);
+    }
+    
+    // Possiamo muovere solo se stiamo guardando l'ultima mossa (il presente)
+    const isLive = (currentHistoryIndex === gameHistoryList.length - 1);
+
     let moves = [];
-    if (selected && !gameOver) moves = getMoves(selected.r, selected.c);
+    if (isLive && selected && !gameOver) moves = getMoves(selected.r, selected.c);
 
     for(let r=0; r<9; r++) {
         for(let c=0; c<9; c++) {
@@ -76,15 +104,37 @@ function drawBoard() {
             if(r===4 && c===4) cell.classList.add('throne');
             if((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
             
-            cell.onclick = () => handleClick(r, c);
+            // --- AGGIUNTA COORDINATE ---
+            // Lettere (a-i) sull'ultima riga
+            if (r === 8) {
+                const letterSpan = document.createElement('span');
+                letterSpan.className = 'coord coord-letter';
+                letterSpan.innerText = String.fromCharCode(97 + c); // 97 = 'a'
+                cell.appendChild(letterSpan);
+            }
+            // Numeri (1-9) sulla prima colonna
+            if (c === 0) {
+                const numSpan = document.createElement('span');
+                numSpan.className = 'coord coord-num';
+                // Tablut notation: 1 è in basso, 9 è in alto
+                numSpan.innerText = 9 - r; 
+                cell.appendChild(numSpan);
+            }
+            // ---------------------------
 
-            if(selected && selected.r === r && selected.c === c) cell.classList.add('selected');
-            if(moves.some(m => m.r===r && m.c===c)) {
+            if (isLive) {
+                cell.onclick = () => handleClick(r, c);
+            } else {
+                cell.style.cursor = 'default'; // Cursore normale se stiamo guardando il passato
+            }
+
+            if(isLive && selected && selected.r === r && selected.c === c) cell.classList.add('selected');
+            if(isLive && moves.some(m => m.r===r && m.c===c)) {
                 const h = document.createElement('div'); h.className='hint';
                 cell.appendChild(h);
             }
 
-            const val = board[r][c];
+            const val = stateToDraw[r][c];
             if(val !== 0) {
                 const p = document.createElement('div');
                 p.className = 'piece ' + (val===3 ? 'black-piece' : 'white-piece');
@@ -122,11 +172,106 @@ function isMyPiece(val) {
     return false;
 }
 
+function getNotation(r, c) {
+    return `${String.fromCharCode(97 + c)}${9 - r}`;
+}
+
+function makeMove(r1, c1, r2, c2) {
+    const piece = board[r1][c1];
+    board[r2][c2] = piece;
+    board[r1][c1] = 0;
+    selected = null;
+    movesCount++; 
+
+    // Log per la tabella
+    const moveString = `${getNotation(r1, c1)}-${getNotation(r2, c2)}`;
+    moveLog.push(moveString);
+
+    checkCaptures(r2, c2);
+
+    gameHistoryList.push(JSON.stringify(board));
+    // Aggiorna indice visualizzazione all'ultima mossa
+    currentHistoryIndex = gameHistoryList.length - 1;
+
+    const nextTurn = turn === 'white' ? 'black' : 'white';
+    
+    if (checkWin()) return;
+    
+    const hash = JSON.stringify(board) + turn;
+    historyHash[hash] = (historyHash[hash] || 0) + 1;
+    if (historyHash[hash] >= 3) {
+        endGame('Pareggio per ripetizione di mosse');
+        if(mode==='online') socket.emit('game_over', { gameId });
+        return;
+    }
+
+    turn = nextTurn;
+    
+    updateMoveTable();
+    updateNavUI();
+    drawBoard();
+    updateUI();
+    updateButtonsUI();
+
+    if (mode === 'online' && myColor !== nextTurn) { 
+        socket.emit('make_move', { gameId, moveData: {r1,c1,r2,c2} });
+    }
+}
+
+// --- TABELLA E NAVIGAZIONE ---
+function updateMoveTable() {
+    const tbody = document.getElementById('move-list-body');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    
+    // Ogni riga ha: Numero mossa, Mossa Nero, Mossa Bianco
+    // moveLog = ["a1-a2", "b1-b2", ...]
+    for (let i = 0; i < moveLog.length; i += 2) {
+        const tr = document.createElement('tr');
+        
+        const tdNum = document.createElement('td');
+        tdNum.innerText = (i / 2) + 1 + ".";
+        
+        const tdBlack = document.createElement('td');
+        tdBlack.innerText = moveLog[i]; // Nero muove per primo (indice pari)
+        
+        const tdWhite = document.createElement('td');
+        if (moveLog[i+1]) {
+            tdWhite.innerText = moveLog[i+1];
+        }
+        
+        tr.appendChild(tdNum);
+        tr.appendChild(tdBlack);
+        tr.appendChild(tdWhite);
+        tbody.appendChild(tr);
+    }
+    
+    // Auto-scroll verso il basso
+    const container = document.getElementById('move-history-container');
+    if(container) container.scrollTop = container.scrollHeight;
+}
+
+function navigateHistory(direction) {
+    const newIndex = currentHistoryIndex + direction;
+    if (newIndex >= 0 && newIndex < gameHistoryList.length) {
+        currentHistoryIndex = newIndex;
+        drawBoard();
+        updateNavUI();
+    }
+}
+
+function updateNavUI() {
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    if(btnPrev) btnPrev.disabled = (currentHistoryIndex === 0);
+    if(btnNext) btnNext.disabled = (currentHistoryIndex === gameHistoryList.length - 1);
+}
+
+// --- GET MOVES (invariato) ---
 function getMoves(r, c) {
     let res = [];
     const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
     const isKing = board[r][c] === 2; 
-
     dirs.forEach(d => {
         let i = 1;
         while(true) {
@@ -150,42 +295,7 @@ function getMoves(r, c) {
     return res;
 }
 
-function makeMove(r1, c1, r2, c2) {
-    // Aggiorna stato locale
-    const piece = board[r1][c1];
-    board[r2][c2] = piece;
-    board[r1][c1] = 0;
-    selected = null;
-    movesCount++; // Incremento mosse
-
-    checkCaptures(r2, c2);
-
-    // Salva storia per Undo
-    gameHistoryList.push(JSON.stringify(board));
-
-    const nextTurn = turn === 'white' ? 'black' : 'white';
-    
-    if (checkWin()) return;
-    
-    const hash = JSON.stringify(board) + turn;
-    historyHash[hash] = (historyHash[hash] || 0) + 1;
-    if (historyHash[hash] >= 3) {
-        endGame('Pareggio per ripetizione di mosse');
-        if(mode==='online') socket.emit('game_over', { gameId });
-        return;
-    }
-
-    turn = nextTurn;
-    drawBoard();
-    updateUI();
-    updateButtonsUI(); // Aggiorna bottone Abbandona/Annulla
-
-    if (mode === 'online' && myColor !== nextTurn) { 
-        socket.emit('make_move', { gameId, moveData: {r1,c1,r2,c2} });
-    }
-}
-
-// --- LOGICA CATTURE (Trono trasparente incluso) ---
+// --- CAPTURES (Trono Trasparente) ---
 function checkCaptures(r, c) {
     const me = board[r][c];
     const isWhite = (me === 1 || me === 2);
@@ -256,202 +366,119 @@ function updateUI() {
     el.style.color = turn === 'black' ? "black" : "#d4a017";
 }
 
-// --- NUOVA GESTIONE PULSANTI AZIONE ---
+// --- BUTTONS UI ---
 function updateButtonsUI() {
     const btn = document.getElementById('surrender-btn');
     const undoBtn = document.getElementById('undo-btn');
-    
-    // Aggiorna testo pulsante Annulla Mossa
     undoBtn.innerText = `Annulla Mossa (${undosLeft})`;
     undoBtn.disabled = (undosLeft <= 0 || gameOver);
-
-    // Gestione Abbandona / Annulla
     if (movesCount === 0) {
         btn.innerText = "Annulla Partita";
-        btn.style.backgroundColor = "#ff9800"; // Arancione per annullamento soft
+        btn.style.backgroundColor = "#ff9800"; 
     } else {
         btn.innerText = "Abbandona";
-        btn.style.backgroundColor = "#d32f2f"; // Rosso per resa
+        btn.style.backgroundColor = "#d32f2f"; 
     }
 }
 
-// Funzioni chiamate dai pulsanti HTML
 function handleSurrender() {
     const action = movesCount === 0 ? "annullare" : "abbandonare";
     if(confirm(`Sei sicuro di voler ${action} la partita?`)) {
         socket.emit('surrender_game', { gameId });
     }
 }
-
 function requestUndo() {
-    if(undosLeft > 0 && turn !== myColor) { // Posso chiedere annulla solo se NON tocca a me (ho appena mosso)
+    if(undosLeft > 0 && turn !== myColor) { 
         socket.emit('request_undo', { gameId });
         alert("Richiesta inviata all'avversario...");
     } else if (turn === myColor) {
-        alert("Puoi annullare solo dopo aver fatto la tua mossa (mentre tocca all'avversario).");
+        alert("Puoi annullare solo dopo aver fatto la tua mossa.");
     }
 }
-
 function respondUndo(answer) {
     document.getElementById('undo-request-modal').classList.add('hidden');
     socket.emit('answer_undo', { gameId, answer });
 }
 
-
-// --- LOGICA ONLINE & SOCKET ---
+// --- ONLINE ---
 function initOnline(name, time) {
     document.getElementById('online-ui').classList.remove('hidden');
     document.getElementById('online-ui-bottom').classList.remove('hidden');
-    
     document.getElementById('my-name').innerText = name;
     if (time !== 'no-time') {
         timers.white = parseInt(time)*60;
         timers.black = parseInt(time)*60;
     }
-
-    // Configurazione Socket con Riconnessione
-    socket = io({
-        reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 1000
-    });
-    
+    socket = io({ reconnection: true, reconnectionAttempts: 10, reconnectionDelay: 1000 });
     socket.emit('find_game', { username: name, timeControl: time });
-
+    
     socket.on('game_start', (data) => {
         gameId = data.gameId;
         const isMeWhite = (data.white.trim() === name.trim());
         const oppName = isMeWhite ? data.black : data.white;
         document.getElementById('opp-name').innerText = oppName;
-        
         const myDot = document.getElementById('my-color');
         const oppDot = document.getElementById('opp-color');
-        
-        if (isMeWhite) {
-            myDot.className = 'color-indicator is-white';
-            oppDot.className = 'color-indicator is-black';
-        } else {
-            myDot.className = 'color-indicator is-black';
-            oppDot.className = 'color-indicator is-white';
-        }
-        startGame();
-        startPing();
+        if (isMeWhite) { myDot.className = 'color-indicator is-white'; oppDot.className = 'color-indicator is-black'; } 
+        else { myDot.className = 'color-indicator is-black'; oppDot.className = 'color-indicator is-white'; }
+        startGame(); startPing();
     });
 
-    socket.on('assign_color', (c) => {
-        myColor = c;
-        if(timers.white > 0) startTimer();
-    });
-
-    socket.on('opponent_move', (m) => {
-        makeMove(m.r1, m.c1, m.r2, m.c2);
-    });
-
-    // -- EVENTI NUOVI --
+    socket.on('assign_color', (c) => { myColor = c; if(timers.white > 0) startTimer(); });
+    
+    socket.on('opponent_move', (m) => { makeMove(m.r1, m.c1, m.r2, m.c2); });
+    
     socket.on('game_over_forced', ({ winner, reason }) => {
-        if (reason === 'cancelled') {
-            document.getElementById('game-cancelled-modal').classList.remove('hidden');
-        } else {
-            endGame(winner === 'white' ? 'Vittoria Bianchi (Resa)' : 'Vittoria Neri (Resa)');
-        }
+        if (reason === 'cancelled') document.getElementById('game-cancelled-modal').classList.remove('hidden');
+        else endGame(winner === 'white' ? 'Vittoria Bianchi (Resa)' : 'Vittoria Neri (Resa)');
     });
 
-    socket.on('undo_requested', () => {
-        document.getElementById('undo-request-modal').classList.remove('hidden');
-    });
-
+    socket.on('undo_requested', () => { document.getElementById('undo-request-modal').classList.remove('hidden'); });
     socket.on('undo_accepted', (data) => {
-        // Torna indietro di 1 mossa (sincronizza board e turno)
-        gameHistoryList.pop(); // Rimuovi stato corrente
-        const prevState = gameHistoryList[gameHistoryList.length - 1];
+        gameHistoryList.pop(); // Rimuovi mossa locale
+        // Rimuovi anche dal log
+        moveLog.pop();
         
+        const prevState = gameHistoryList[gameHistoryList.length - 1];
         board = JSON.parse(prevState);
         turn = data.newTurn;
         movesCount--;
+        currentHistoryIndex = gameHistoryList.length - 1;
         
-        // Aggiorna contatori undos ricevuti dal server
-        if (myColor === 'white') undosLeft = data.whiteUndos;
-        else undosLeft = data.blackUndos;
-
-        drawBoard();
-        updateUI();
-        updateButtonsUI();
+        if (myColor === 'white') undosLeft = data.whiteUndos; else undosLeft = data.blackUndos;
+        drawBoard(); updateUI(); updateButtonsUI(); updateMoveTable(); updateNavUI();
         alert("Annullamento mossa accettato!");
     });
 
-    socket.on('undo_refused', () => {
-        alert("L'avversario ha rifiutato l'annullamento.");
-    });
-    
-    // GESTIONE DISCONNESSIONI
-    socket.on('opponent_connection_lost', () => {
-        document.getElementById('opponent-warning').classList.remove('hidden');
-    });
-    
+    socket.on('undo_refused', () => { alert("L'avversario ha rifiutato l'annullamento."); });
+    socket.on('opponent_connection_lost', () => { document.getElementById('opponent-warning').classList.remove('hidden'); });
     socket.on('game_over_timeout', ({ winner, reason }) => {
         document.getElementById('opponent-warning').classList.add('hidden');
         if (reason === 'disconnection') endGame(`Vittoria ${winner} (Disconnessione)`);
         else endGame(`Vittoria ${winner} (Tempo Scaduto)`);
     });
-
     socket.on('time_expired', (d) => { endGame(d.loser === 'white' ? "Vittoria Neri (Tempo)" : "Vittoria Bianchi (Tempo)"); });
-
-    // Gestione Heartbeat Client -> Server
-    socket.on('pong', () => {
-        const ms = Date.now() - lastPing;
-        updateSignal(ms);
-        // Nascondi avviso se connessione torna buona
-        document.getElementById('connection-warning').classList.add('hidden');
-    });
-
-    // Eventi di sistema Socket.io per rilevare problemi locali
-    socket.on('connect_error', () => {
-        document.getElementById('connection-warning').classList.remove('hidden');
-    });
-    socket.on('reconnect', () => {
-        document.getElementById('connection-warning').classList.add('hidden');
-        // Se mi riconnetto, devo dire al server che sono tornato?
-        // Socket.io gestisce il canale, ma per la logica "game" complessa servirebbe un "rejoin".
-        // Per questa implementazione base, se la socket cade e torna su, speriamo che l'ID sia mantenuto o gestito.
-        // Nota: senza sessioni persistenti, un F5 rompe tutto. Questo gestisce solo wifi on/off.
-    });
+    socket.on('pong', () => { const ms = Date.now() - lastPing; updateSignal(ms); document.getElementById('connection-warning').classList.add('hidden'); });
+    socket.on('connect_error', () => { document.getElementById('connection-warning').classList.remove('hidden'); });
 }
 
 let lastPing = 0;
 function startPing() {
-    setInterval(() => {
-        lastPing = Date.now();
-        socket.emit('ping');
-    }, 2000);
-    
-    // Check timeout locale (se server non risponde da 30s)
-    setInterval(() => {
-        if(Date.now() - lastPing > 30000) {
-             document.getElementById('connection-warning').classList.remove('hidden');
-        }
-    }, 5000);
+    setInterval(() => { lastPing = Date.now(); socket.emit('ping'); }, 2000);
+    setInterval(() => { if(Date.now() - lastPing > 30000) document.getElementById('connection-warning').classList.remove('hidden'); }, 5000);
 }
-
 function updateSignal(ms) {
-    const el = document.getElementById('my-signal');
-    el.classList.remove('signal-1', 'signal-2', 'signal-3', 'signal-4');
+    const el = document.getElementById('my-signal'); el.classList.remove('signal-1', 'signal-2', 'signal-3', 'signal-4');
     let quality = 'signal-4'; 
-    if (ms > 500) quality = 'signal-1';      
-    else if (ms > 300) quality = 'signal-2'; 
-    else if (ms > 100) quality = 'signal-3'; 
+    if (ms > 500) quality = 'signal-1'; else if (ms > 300) quality = 'signal-2'; else if (ms > 100) quality = 'signal-3'; 
     el.classList.add(quality);
 }
-
 function startTimer() {
     if(timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
         if(gameOver) return;
         if(turn === 'white') timers.white--; else timers.black--;
-        const fmt = (t) => {
-            if(t<0) return "00:00";
-            let m=Math.floor(t/60), s=t%60;
-            return `${m}:${s<10?'0'+s:s}`;
-        };
+        const fmt = (t) => { if(t<0) return "00:00"; let m=Math.floor(t/60), s=t%60; return `${m}:${s<10?'0'+s:s}`; };
         document.getElementById('my-timer').innerText = fmt(myColor==='white'?timers.white:timers.black);
         document.getElementById('opp-timer').innerText = fmt(myColor==='white'?timers.black:timers.white);
     }, 1000);
