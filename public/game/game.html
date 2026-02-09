@@ -8,21 +8,24 @@
 </head>
 <body>
 
-    <div id="connection-warning" class="hidden">⚠️ Connessione instabile... tentativo di riconnessione.</div>
-    <div id="opponent-warning" class="hidden">⏳ L'avversario ha perso la connessione. Attendi...</div>
+    <div id="connection-warning" class="hidden">⚠️ Connessione instabile...</div>
+    <div id="opponent-warning" class="hidden">⏳ L'avversario ha perso la connessione...</div>
 
     <div id="layout-container">
         
         <div id="main-column">
+            
             <div id="online-ui" class="hidden">
                 <div class="player-bar top">
-                    <div class="player-info">
+                    <div class="player-info-container">
                         <div id="opp-color" class="color-indicator"></div> 
                         <span id="opp-name" class="player-name">Avversario</span>
                     </div>
-                    <span class="timer" id="opp-timer">--:--</span>
-                    <div class="signal-bars signal-4" id="opp-signal">
-                        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    <div class="stats-container">
+                        <span class="timer" id="opp-timer">--:--</span>
+                        <div class="signal-bars signal-4" id="opp-signal">
+                            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -36,24 +39,26 @@
 
             <div id="online-ui-bottom" class="hidden">
                 <div class="player-bar bottom">
-                    <div class="player-info">
+                    <div class="player-info-container">
                         <div id="my-color" class="color-indicator"></div> 
                         <span id="my-name" class="player-name">Tu</span>
                     </div>
-                    <span class="timer" id="my-timer">--:--</span>
-                    <div class="signal-bars signal-4" id="my-signal">
-                        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    <div class="stats-container">
+                        <span class="timer" id="my-timer">--:--</span>
+                        <div class="signal-bars signal-4" id="my-signal">
+                            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                        </div>
                     </div>
                 </div>
                 
                 <div id="action-buttons">
-                    <button id="undo-btn" onclick="requestUndo()">Annulla Mossa (3)</button>
+                    <button id="undo-btn" onclick="requestUndo()">Annulla Mossa</button>
                     <button id="surrender-btn" onclick="handleSurrender()">Annulla Partita</button>
                 </div>
             </div>
         </div>
 
-        <div id="sidebar" class="hidden-mobile">
+        <div id="sidebar">
             <h3>Storia Partita</h3>
             <div id="move-history-container">
                 <table id="move-table">
@@ -70,13 +75,15 @@
             </div>
             
             <div id="history-controls">
-                <button id="btn-prev" class="nav-btn">◀</button>
-                <button id="btn-next" class="nav-btn">▶</button>
+                <button id="btn-prev" class="nav-btn">◀ Indietro</button>
+                <button id="btn-next" class="nav-btn">Avanti ▶</button>
             </div>
-            <p class="small-note">Usa le frecce della tastiera</p>
+            <p class="small-note">Usa le frecce della tastiera per rivedere le mosse</p>
         </div>
 
-    </div> <div id="game-over-modal" class="hidden">
+    </div>
+
+    <div id="game-over-modal" class="hidden">
         <div class="modal-content">
             <h2 id="winner-title">Vittoria!</h2>
             <p id="winner-msg"></p>
@@ -86,23 +93,22 @@
 
     <div id="game-cancelled-modal" class="hidden">
         <div class="modal-content">
-            <h2>Partita Annullata</h2>
-            <p>La partita è stata interrotta senza vincitori.</p>
+            <h2 style="color: #d32f2f;">Partita Annullata</h2>
+            <p>La partita è stata interrotta prima dell'inizio.</p>
             <div class="modal-buttons-col">
-                <button onclick="window.location.href='../index.html'">Home</button>
-                <button onclick="window.location.href='../index.html'">Nuova Partita</button>
-                <button id="play-again-same-settings">Gioca di nuovo</button>
+                <button onclick="window.location.href='../index.html'">🏠 Home</button>
+                <button id="play-again-same-settings">🔄 Cerca Nuovo Avversario</button>
             </div>
         </div>
     </div>
 
     <div id="undo-request-modal" class="hidden">
         <div class="modal-content small-modal">
-            <h3>Richiesta Annullamento</h3>
-            <p>L'avversario vorrebbe ritirare l'ultima mossa. Acconsenti?</p>
+            <h3>Richiesta di Ritiro</h3>
+            <p>L'avversario chiede di annullare l'ultima mossa.</p>
             <div class="row-btns">
-                <button onclick="respondUndo(true)" style="background:#4caf50;">Sì</button>
-                <button onclick="respondUndo(false)" style="background:#f44336;">No</button>
+                <button onclick="respondUndo(true)" style="background:#4caf50;">Accetta</button>
+                <button onclick="respondUndo(false)" style="background:#f44336;">Rifiuta</button>
             </div>
         </div>
     </div>
