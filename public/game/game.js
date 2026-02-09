@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startGame();
     }
     
+    // Controlli Desktop
     const btnPrev = document.getElementById('btn-prev');
     const btnNext = document.getElementById('btn-next');
     if(btnPrev) btnPrev.addEventListener('click', () => navigateHistory(-1));
@@ -98,13 +99,15 @@ function drawBoard() {
             if(r===4 && c===4) cell.classList.add('throne');
             if((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
             
-            // Coordinate
+            // --- AGGIUNTA COORDINATE ---
+            // Lettere (a-i) ultima riga
             if (r === 8) {
                 const letterSpan = document.createElement('span');
                 letterSpan.className = 'coord coord-letter';
                 letterSpan.innerText = String.fromCharCode(97 + c);
                 cell.appendChild(letterSpan);
             }
+            // Numeri (1-9) prima colonna
             if (c === 0) {
                 const numSpan = document.createElement('span');
                 numSpan.className = 'coord coord-num';
@@ -307,22 +310,21 @@ function checkCaptures(r, c) {
     });
 }
 
-// *** MODIFICA QUI: Il Trono vale come ostile per catturare il Re ***
+// *** CATTURA RE (3 Neri + Trono) ***
 function checkKingCapture(r, c) {
     let attackers = 0;
     const adj = [[r-1,c], [r+1,c], [r,c-1], [r,c+1]];
     
     adj.forEach(([ar, ac]) => {
-        // 1. Fuori bordo conta come attaccante
+        // 1. Fuori bordo = Muro
         if (ar<0 || ar>8 || ac<0 || ac>8) {
             attackers++;
         }
-        // 2. Pedina Nera conta come attaccante
+        // 2. Pedina Nera
         else if (board[ar][ac] === 3) {
             attackers++;
         }
-        // 3. Il Trono conta come attaccante (anche senza nero dietro)
-        // Questo risolve la situazione dell'immagine: 3 Neri + Trono = Cattura
+        // 3. Trono (anche se vuoto) vale come ostile per il Re
         else if (ar===4 && ac===4) {
             attackers++; 
         }
@@ -355,8 +357,11 @@ function updateUI() {
 function updateButtonsUI() {
     const btn = document.getElementById('surrender-btn');
     const undoBtn = document.getElementById('undo-btn');
-    undoBtn.innerText = `Annulla Mossa (${undosLeft})`;
+    
+    // RIMOSSO "(3)" dal testo del pulsante
+    undoBtn.innerText = `Annulla Mossa`;
     undoBtn.disabled = (undosLeft <= 0 || gameOver);
+    
     if (movesCount === 0) {
         btn.innerText = "Annulla Partita";
         btn.style.backgroundColor = "#ff9800"; 
@@ -372,14 +377,25 @@ function handleSurrender() {
         socket.emit('surrender_game', { gameId });
     }
 }
+
 function requestUndo() {
+    // Alert info come richiesto
     if(undosLeft > 0 && turn !== myColor) { 
-        socket.emit('request_undo', { gameId });
-        alert("Richiesta inviata all'avversario...");
+        if(confirm(`Vuoi chiedere di annullare la mossa?\nHai ancora ${undosLeft} possibilità.`)) {
+            socket.emit('request_undo', { gameId });
+            // Feedback visivo semplice
+            const btn = document.getElementById('undo-btn');
+            const originalText = btn.innerText;
+            btn.innerText = "In attesa...";
+            setTimeout(() => btn.innerText = originalText, 2000);
+        }
+    } else if (undosLeft <= 0) {
+        alert("Hai esaurito i tentativi di annullamento (Massimo 3).");
     } else if (turn === myColor) {
         alert("Puoi annullare solo dopo aver fatto la tua mossa.");
     }
 }
+
 function respondUndo(answer) {
     document.getElementById('undo-request-modal').classList.add('hidden');
     socket.emit('answer_undo', { gameId, answer });
