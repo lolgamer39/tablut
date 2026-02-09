@@ -113,10 +113,10 @@ function isMyPiece(val) {
     return false;
 }
 
-// *** LOGICA MOVIMENTO RE AGGIORNATA (SOLO 1 PASSO) ***
+// Logica Movimento Re (1 Passo)
 function getMoves(r, c) {
     let res = [];
-    const dirs = [[0,1], [0,-1], [1,0], [-1,0]]; // Solo ortogonali
+    const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
     const isKing = board[r][c] === 2; 
 
     dirs.forEach(d => {
@@ -130,24 +130,18 @@ function getMoves(r, c) {
             const targetVal = board[nr][nc];
             const isThrone = (nr===4 && nc===4);
 
-            // Regola Trono
             if (isThrone) {
-                if (targetVal !== 0) break; // Trono occupato
-                if (isKing) break; // Il Re non può rientrare nel trono (Regola Tablut classica)
-                
-                // Le pedine saltano il trono: continuo il loop ma non aggiungo la mossa
+                if (targetVal !== 0) break; 
+                if (isKing) break; 
                 i++;
                 continue; 
             }
 
-            if(targetVal !== 0) break; // C'è un pezzo
-
-            // Regola Angoli: Solo il Re può andarci
+            if(targetVal !== 0) break;
             if (!isKing && ((nr===0||nr===8) && (nc===0||nc===8))) break; 
 
             res.push({r: nr, c: nc});
             
-            // *** STOP LOOP SE È IL RE (1 passo max) ***
             if (isKing) break; 
 
             i++;
@@ -185,6 +179,7 @@ function makeMove(r1, c1, r2, c2) {
     }
 }
 
+// *** LOGICA CATTURA MODIFICATA (Trono Trasparente) ***
 function checkCaptures(r, c) {
     const me = board[r][c];
     const isWhite = (me === 1 || me === 2);
@@ -192,12 +187,13 @@ function checkCaptures(r, c) {
     const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
     
     dirs.forEach(d => {
-        const nr = r + d[0], nc = c + d[1];     
-        const fr = r + d[0]*2, fc = c + d[1]*2; 
+        const nr = r + d[0], nc = c + d[1];     // Vittima
+        const fr = r + d[0]*2, fc = c + d[1]*2; // Incudine (Oltre la vittima)
 
         if(nr>=0 && nr<9 && enemies.includes(board[nr][nc])) {
             const victim = board[nr][nc];
             
+            // Se è il Re, gestione separata
             if (victim === 2) {
                 checkKingCapture(nr, nc);
                 return;
@@ -205,10 +201,36 @@ function checkCaptures(r, c) {
 
             if (fr>=0 && fr<9) {
                 const anvil = board[fr][fc];
+                
+                // 1. Controllo se l'incudine è una pedina amica
                 const isAnvilFriend = isWhite ? (anvil===1 || anvil===2) : (anvil===3);
-                const isStructure = ((fr===0||fr===8) && (fc===0||fc===8)) || (fr===4 && fc===4); 
+                
+                // 2. Controllo Strutture (SOLO Angoli ora, non il Trono)
+                const isCorner = ((fr===0||fr===8) && (fc===0||fc===8)); 
+                
+                // 3. Controllo Trono (Speciale)
+                const isThrone = (fr===4 && fc===4);
 
-                if (isAnvilFriend || isStructure) {
+                let capture = false;
+
+                if (isAnvilFriend || isCorner) {
+                    capture = true;
+                } 
+                else if (isThrone) {
+                    // SE L'INCUDINE È IL TRONO:
+                    // Controlliamo cosa c'è DIETRO il trono (fr+d[0], fc+d[1])
+                    const behindTr = fr + d[0];
+                    const behindTc = fc + d[1];
+                    
+                    if (behindTr>=0 && behindTr<9 && behindTc>=0 && behindTc<9) {
+                        const behindVal = board[behindTr][behindTc];
+                        // Se dietro il trono c'è un amico, il trono fa da ponte -> CATTURA
+                        const isBehindFriend = isWhite ? (behindVal===1 || behindVal===2) : (behindVal===3);
+                        if (isBehindFriend) capture = true;
+                    }
+                }
+
+                if (capture) {
                     board[nr][nc] = 0; 
                 }
             }
@@ -216,17 +238,36 @@ function checkCaptures(r, c) {
     });
 }
 
+// *** CATTURA RE MODIFICATA (Trono Trasparente) ***
 function checkKingCapture(r, c) {
     let attackers = 0;
     const adj = [[r-1,c], [r+1,c], [r,c-1], [r,c+1]];
     
     adj.forEach(([ar, ac]) => {
-        if (ar<0 || ar>8 || ac<0 || ac>8 || (ar===4&&ac===4) || board[ar][ac]===3) {
+        // 1. Fuori bordo conta come muro (attaccante)
+        if (ar<0 || ar>8 || ac<0 || ac>8) {
             attackers++;
+        } 
+        // 2. Pedina Nera conta come attaccante
+        else if (board[ar][ac] === 3) {
+            attackers++;
+        }
+        // 3. Trono conta come attaccante SOLO se dietro c'è un nero
+        else if (ar===4 && ac===4) {
+            // Calcola la casella dietro al trono rispetto al Re
+            // Vettore direzione: (ar-r, ac-c)
+            const behindTr = ar + (ar-r);
+            const behindTc = ac + (ac-c);
+            
+            if (behindTr>=0 && behindTr<9 && behindTc>=0 && behindTc<9) {
+                // Se dietro il trono c'è un nero, conta +1
+                if (board[behindTr][behindTc] === 3) {
+                    attackers++;
+                }
+            }
         }
     });
 
-    // Se attaccanti >= 4 vince il nero (o 3 se vicino al trono/bordo per logica interna Tablut)
     if (attackers >= 4) endGame('Vittoria Neri!');
 }
 
@@ -252,10 +293,11 @@ function updateUI() {
     el.style.color = turn === 'black' ? "black" : "#d4a017";
 }
 
-// --- LOGICA ONLINE SOCKET ---
+// --- LOGICA ONLINE (PROSPETTIVA UTENTE) ---
 function initOnline(name, time) {
     document.getElementById('online-ui').classList.remove('hidden');
     document.getElementById('online-ui-bottom').classList.remove('hidden');
+    
     document.getElementById('my-name').innerText = name;
     
     if (time !== 'no-time') {
@@ -268,12 +310,11 @@ function initOnline(name, time) {
 
     socket.on('game_start', (data) => {
         gameId = data.gameId;
-        const isMeWhite = (data.white === name);
         
-        // Imposta nome Avversario
-        document.getElementById('opp-name').innerText = isMeWhite ? data.black : data.white;
+        const isMeWhite = (data.white.trim() === name.trim());
+        const oppName = isMeWhite ? data.black : data.white;
+        document.getElementById('opp-name').innerText = oppName;
         
-        // --- IMPOSTA INDICATORI COLORE ---
         const myDot = document.getElementById('my-color');
         const oppDot = document.getElementById('opp-color');
         
@@ -320,10 +361,10 @@ function updateSignal(ms) {
     const el = document.getElementById('my-signal');
     el.classList.remove('signal-1', 'signal-2', 'signal-3', 'signal-4');
     
-    let quality = 'signal-4'; // Verde Scuro (Ottima)
-    if (ms > 500) quality = 'signal-1';      // Rosso
-    else if (ms > 300) quality = 'signal-2'; // Giallo
-    else if (ms > 100) quality = 'signal-3'; // Verde Chiaro
+    let quality = 'signal-4'; 
+    if (ms > 500) quality = 'signal-1';      
+    else if (ms > 300) quality = 'signal-2'; 
+    else if (ms > 100) quality = 'signal-3'; 
     
     el.classList.add(quality);
     
