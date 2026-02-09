@@ -11,45 +11,72 @@
     <div id="connection-warning" class="hidden">⚠️ Connessione instabile... tentativo di riconnessione.</div>
     <div id="opponent-warning" class="hidden">⏳ L'avversario ha perso la connessione. Attendi...</div>
 
-    <div id="online-ui" class="hidden">
-        <div class="player-bar top">
-            <div class="player-info">
-                <div id="opp-color" class="color-indicator"></div> 
-                <span id="opp-name" class="player-name">Avversario</span>
-            </div>
-            <span class="timer" id="opp-timer">--:--</span>
-            <div class="signal-bars signal-4" id="opp-signal">
-                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="game-wrapper">
-        <div id="status-panel">
-            Tocca ai: <strong id="current-player">Neri</strong>
-        </div>
-        <div id="board"></div>
-    </div>
-
-    <div id="online-ui-bottom" class="hidden">
-        <div class="player-bar bottom">
-            <div class="player-info">
-                <div id="my-color" class="color-indicator"></div> 
-                <span id="my-name" class="player-name">Tu</span>
-            </div>
-            <span class="timer" id="my-timer">--:--</span>
-            <div class="signal-bars signal-4" id="my-signal">
-                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-            </div>
-        </div>
+    <div id="layout-container">
         
-        <div id="action-buttons">
-            <button id="undo-btn" onclick="requestUndo()">Annulla Mossa (3)</button>
-            <button id="surrender-btn" onclick="handleSurrender()">Annulla Partita</button>
-        </div>
-    </div>
+        <div id="main-column">
+            <div id="online-ui" class="hidden">
+                <div class="player-bar top">
+                    <div class="player-info">
+                        <div id="opp-color" class="color-indicator"></div> 
+                        <span id="opp-name" class="player-name">Avversario</span>
+                    </div>
+                    <span class="timer" id="opp-timer">--:--</span>
+                    <div class="signal-bars signal-4" id="opp-signal">
+                        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    </div>
+                </div>
+            </div>
 
-    <div id="game-over-modal" class="hidden">
+            <div id="game-wrapper">
+                <div id="status-panel">
+                    Tocca ai: <strong id="current-player">Neri</strong>
+                </div>
+                <div id="board"></div>
+            </div>
+
+            <div id="online-ui-bottom" class="hidden">
+                <div class="player-bar bottom">
+                    <div class="player-info">
+                        <div id="my-color" class="color-indicator"></div> 
+                        <span id="my-name" class="player-name">Tu</span>
+                    </div>
+                    <span class="timer" id="my-timer">--:--</span>
+                    <div class="signal-bars signal-4" id="my-signal">
+                        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    </div>
+                </div>
+                
+                <div id="action-buttons">
+                    <button id="undo-btn" onclick="requestUndo()">Annulla Mossa (3)</button>
+                    <button id="surrender-btn" onclick="handleSurrender()">Annulla Partita</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="sidebar" class="hidden-mobile">
+            <h3>Storia Partita</h3>
+            <div id="move-history-container">
+                <table id="move-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Neri</th>
+                            <th>Bianchi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="move-list-body">
+                        </tbody>
+                </table>
+            </div>
+            
+            <div id="history-controls">
+                <button id="btn-prev" class="nav-btn">◀</button>
+                <button id="btn-next" class="nav-btn">▶</button>
+            </div>
+            <p class="small-note">Usa le frecce della tastiera</p>
+        </div>
+
+    </div> <div id="game-over-modal" class="hidden">
         <div class="modal-content">
             <h2 id="winner-title">Vittoria!</h2>
             <p id="winner-msg"></p>
