@@ -15,8 +15,8 @@ let turn = 'black';
 let selected = null;
 let gameOver = false;
 let historyHash = {}; 
-let gameHistoryList = []; // Array per salvare la storia completa
-let moveLog = []; // Log testuale per la tabella
+let gameHistoryList = []; 
+let moveLog = []; 
 
 let mode = 'local';
 let socket;
@@ -28,7 +28,7 @@ let badConnCount = 0;
 let movesCount = 0; 
 let undosLeft = 3;  
 let storedParams = {}; 
-let currentHistoryIndex = 0; // Per la navigazione visiva
+let currentHistoryIndex = 0; 
 
 document.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
@@ -41,13 +41,11 @@ document.addEventListener('DOMContentLoaded', () => {
         startGame();
     }
     
-    // Bottoni Navigazione Storia
     const btnPrev = document.getElementById('btn-prev');
     const btnNext = document.getElementById('btn-next');
     if(btnPrev) btnPrev.addEventListener('click', () => navigateHistory(-1));
     if(btnNext) btnNext.addEventListener('click', () => navigateHistory(1));
 
-    // Tastiera Frecce
     document.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowLeft') navigateHistory(-1);
         if (e.key === 'ArrowRight') navigateHistory(1);
@@ -80,20 +78,16 @@ function startGame() {
     updateNavUI();
 }
 
-// Disegna la scacchiera in base all'indice corrente della storia
 function drawBoard() {
     const el = document.getElementById('board');
     el.innerHTML = '';
     
-    // Recupera lo stato da disegnare (se stiamo guardando il passato)
     let stateToDraw = board;
     if (gameHistoryList.length > 0) {
         stateToDraw = JSON.parse(gameHistoryList[currentHistoryIndex]);
     }
     
-    // Possiamo muovere solo se stiamo guardando l'ultima mossa (il presente)
     const isLive = (currentHistoryIndex === gameHistoryList.length - 1);
-
     let moves = [];
     if (isLive && selected && !gameOver) moves = getMoves(selected.r, selected.c);
 
@@ -104,28 +98,24 @@ function drawBoard() {
             if(r===4 && c===4) cell.classList.add('throne');
             if((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
             
-            // --- AGGIUNTA COORDINATE ---
-            // Lettere (a-i) sull'ultima riga
+            // Coordinate
             if (r === 8) {
                 const letterSpan = document.createElement('span');
                 letterSpan.className = 'coord coord-letter';
-                letterSpan.innerText = String.fromCharCode(97 + c); // 97 = 'a'
+                letterSpan.innerText = String.fromCharCode(97 + c);
                 cell.appendChild(letterSpan);
             }
-            // Numeri (1-9) sulla prima colonna
             if (c === 0) {
                 const numSpan = document.createElement('span');
                 numSpan.className = 'coord coord-num';
-                // Tablut notation: 1 è in basso, 9 è in alto
                 numSpan.innerText = 9 - r; 
                 cell.appendChild(numSpan);
             }
-            // ---------------------------
 
             if (isLive) {
                 cell.onclick = () => handleClick(r, c);
             } else {
-                cell.style.cursor = 'default'; // Cursore normale se stiamo guardando il passato
+                cell.style.cursor = 'default'; 
             }
 
             if(isLive && selected && selected.r === r && selected.c === c) cell.classList.add('selected');
@@ -183,14 +173,12 @@ function makeMove(r1, c1, r2, c2) {
     selected = null;
     movesCount++; 
 
-    // Log per la tabella
     const moveString = `${getNotation(r1, c1)}-${getNotation(r2, c2)}`;
     moveLog.push(moveString);
 
     checkCaptures(r2, c2);
 
     gameHistoryList.push(JSON.stringify(board));
-    // Aggiorna indice visualizzazione all'ultima mossa
     currentHistoryIndex = gameHistoryList.length - 1;
 
     const nextTurn = turn === 'white' ? 'black' : 'white';
@@ -218,35 +206,22 @@ function makeMove(r1, c1, r2, c2) {
     }
 }
 
-// --- TABELLA E NAVIGAZIONE ---
 function updateMoveTable() {
     const tbody = document.getElementById('move-list-body');
     if(!tbody) return;
     tbody.innerHTML = '';
     
-    // Ogni riga ha: Numero mossa, Mossa Nero, Mossa Bianco
-    // moveLog = ["a1-a2", "b1-b2", ...]
     for (let i = 0; i < moveLog.length; i += 2) {
         const tr = document.createElement('tr');
-        
         const tdNum = document.createElement('td');
         tdNum.innerText = (i / 2) + 1 + ".";
-        
         const tdBlack = document.createElement('td');
-        tdBlack.innerText = moveLog[i]; // Nero muove per primo (indice pari)
-        
+        tdBlack.innerText = moveLog[i]; 
         const tdWhite = document.createElement('td');
-        if (moveLog[i+1]) {
-            tdWhite.innerText = moveLog[i+1];
-        }
-        
-        tr.appendChild(tdNum);
-        tr.appendChild(tdBlack);
-        tr.appendChild(tdWhite);
+        if (moveLog[i+1]) { tdWhite.innerText = moveLog[i+1]; }
+        tr.appendChild(tdNum); tr.appendChild(tdBlack); tr.appendChild(tdWhite);
         tbody.appendChild(tr);
     }
-    
-    // Auto-scroll verso il basso
     const container = document.getElementById('move-history-container');
     if(container) container.scrollTop = container.scrollHeight;
 }
@@ -267,7 +242,6 @@ function updateNavUI() {
     if(btnNext) btnNext.disabled = (currentHistoryIndex === gameHistoryList.length - 1);
 }
 
-// --- GET MOVES (invariato) ---
 function getMoves(r, c) {
     let res = [];
     const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
@@ -295,7 +269,6 @@ function getMoves(r, c) {
     return res;
 }
 
-// --- CAPTURES (Trono Trasparente) ---
 function checkCaptures(r, c) {
     const me = board[r][c];
     const isWhite = (me === 1 || me === 2);
@@ -307,13 +280,18 @@ function checkCaptures(r, c) {
         const fr = r + d[0]*2, fc = c + d[1]*2; 
         if(nr>=0 && nr<9 && enemies.includes(board[nr][nc])) {
             const victim = board[nr][nc];
+            
+            // SE IL RE E' LA VITTIMA
             if (victim === 2) { checkKingCapture(nr, nc); return; }
+            
+            // PEDINA NORMALE
             if (fr>=0 && fr<9) {
                 const anvil = board[fr][fc];
                 const isAnvilFriend = isWhite ? (anvil===1 || anvil===2) : (anvil===3);
                 const isCorner = ((fr===0||fr===8) && (fc===0||fc===8)); 
                 const isThrone = (fr===4 && fc===4);
                 let capture = false;
+                
                 if (isAnvilFriend || isCorner) capture = true;
                 else if (isThrone) {
                     const behindTr = fr + d[0], behindTc = fc + d[1];
@@ -329,19 +307,27 @@ function checkCaptures(r, c) {
     });
 }
 
+// *** MODIFICA QUI: Il Trono vale come ostile per catturare il Re ***
 function checkKingCapture(r, c) {
     let attackers = 0;
     const adj = [[r-1,c], [r+1,c], [r,c-1], [r,c+1]];
+    
     adj.forEach(([ar, ac]) => {
-        if (ar<0 || ar>8 || ac<0 || ac>8) attackers++;
-        else if (board[ar][ac] === 3) attackers++;
+        // 1. Fuori bordo conta come attaccante
+        if (ar<0 || ar>8 || ac<0 || ac>8) {
+            attackers++;
+        }
+        // 2. Pedina Nera conta come attaccante
+        else if (board[ar][ac] === 3) {
+            attackers++;
+        }
+        // 3. Il Trono conta come attaccante (anche senza nero dietro)
+        // Questo risolve la situazione dell'immagine: 3 Neri + Trono = Cattura
         else if (ar===4 && ac===4) {
-            const behindTr = ar + (ar-r), behindTc = ac + (ac-c);
-            if (behindTr>=0 && behindTr<9 && behindTc>=0 && behindTc<9) {
-                if (board[behindTr][behindTc] === 3) attackers++;
-            }
+            attackers++; 
         }
     });
+
     if (attackers >= 4) endGame('Vittoria Neri!');
 }
 
@@ -366,7 +352,6 @@ function updateUI() {
     el.style.color = turn === 'black' ? "black" : "#d4a017";
 }
 
-// --- BUTTONS UI ---
 function updateButtonsUI() {
     const btn = document.getElementById('surrender-btn');
     const undoBtn = document.getElementById('undo-btn');
@@ -400,7 +385,6 @@ function respondUndo(answer) {
     socket.emit('answer_undo', { gameId, answer });
 }
 
-// --- ONLINE ---
 function initOnline(name, time) {
     document.getElementById('online-ui').classList.remove('hidden');
     document.getElementById('online-ui-bottom').classList.remove('hidden');
@@ -435,8 +419,7 @@ function initOnline(name, time) {
 
     socket.on('undo_requested', () => { document.getElementById('undo-request-modal').classList.remove('hidden'); });
     socket.on('undo_accepted', (data) => {
-        gameHistoryList.pop(); // Rimuovi mossa locale
-        // Rimuovi anche dal log
+        gameHistoryList.pop(); 
         moveLog.pop();
         
         const prevState = gameHistoryList[gameHistoryList.length - 1];
